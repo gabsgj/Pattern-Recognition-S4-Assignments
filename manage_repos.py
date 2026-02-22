@@ -101,6 +101,8 @@ def process_repositories(file_path):
     print(f"Found {len(links)} unique repository links.")
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     
+    student_details = set()
+    
     # Map existing downloaded repositories to handle 'latest' updates
     existing_repos = {}
     for entry in os.listdir(OUTPUT_DIR):
@@ -127,6 +129,10 @@ def process_repositories(file_path):
                 subprocess.run(['git', '-C', matched_repo_path, 'pull'], check=False)
             else:
                 print(f"\n[SKIP] Repository already exists: {matched_repo_path}")
+                
+            reg_no, name = extract_info_from_readme(matched_repo_path)
+            if reg_no != "UNKNOWN_REG" or name != "Unknown_Name":
+                student_details.add((reg_no, name))
             continue
             
         print(f"\n[CLONE] Downloading repository: {link}")
@@ -142,6 +148,8 @@ def process_repositories(file_path):
             
             # Read README and extract the required formatting information
             reg_no, name = extract_info_from_readme(temp_clone_dir)
+            if reg_no != "UNKNOWN_REG" or name != "Unknown_Name":
+                student_details.add((reg_no, name))
             
             # Form final layout for target folder
             if reg_no == "UNKNOWN_REG" and name == "Unknown_Name":
@@ -176,6 +184,21 @@ def process_repositories(file_path):
             # Force clean up strictly tracking temp leftovers
             if os.path.exists(temp_clone_dir):
                 shutil.rmtree(temp_clone_dir, onerror=remove_readonly)
+
+    # Create the README file at the root directory
+    readme_path = "README.md"
+    try:
+        with open(readme_path, 'w', encoding='utf-8') as f:
+            f.write("# PECST412 Pattern Recognition\n\n")
+            f.write("## Students\n\n")
+            if not student_details:
+                f.write("No student details found.\n")
+            else:
+                for reg_no, name in sorted(student_details):
+                    f.write(f"- {reg_no} - {name}\n")
+        print(f"\nCreated/Updated root README at {readme_path}")
+    except Exception as e:
+        print(f"\n[ERROR] Failed to write README.md: {e}")
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
