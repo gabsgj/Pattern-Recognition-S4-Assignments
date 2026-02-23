@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Hidden Markov Model — Baum-Welch</title>
+  <link rel="stylesheet" href="style.css"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@300;400;600&display=swap" rel="stylesheet"/>
+  <!-- MathJax -->
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" async></script>
+</head>
+<body>
+
+<!-- ============ NAV ============ -->
+<nav class="navbar">
+  <div class="nav-brand">
+    <span class="brand-icon">HMM</span>
+    <span class="brand-text">Baum–Welch</span>
+  </div>
+  <ul class="nav-links">
+    <li><a href="#intro">Intro</a></li>
+    <li><a href="#definition">Model</a></li>
+    <li><a href="#forward">Forward</a></li>
+    <li><a href="#backward">Backward</a></li>
+    <li><a href="#updates">Updates</a></li>
+    <li><a href="#playground">Playground</a></li>
+    <li><a href="#viterbi">Viterbi</a></li>
+  </ul>
+  <button class="nav-toggle" id="navToggle">☰</button>
+</nav>
+
+<!-- ============ HERO ============ -->
+<section class="hero" id="intro">
+  <div class="hero-bg">
+    <canvas id="heroCanvas"></canvas>
+  </div>
+  <div class="hero-content">
+    <div class="hero-badge">STOCHASTIC PROCESSES</div>
+    <h1 class="hero-title">Decoding the<br/><span class="accent">Hidden States</span></h1>
+    <p class="hero-desc">Explore the mathematical elegance of Hidden Markov Models. Visualize state transitions, emission probabilities, and the Baum–Welch algorithm with full mathematical depth.</p>
+    <a href="#definition" class="btn-primary">Start Exploration →</a>
+    <div class="hero-stats">
+      <div class="stat"><span class="stat-val">EM</span><span class="stat-label">Algorithm</span></div>
+      <div class="stat"><span class="stat-val">∞</span><span class="stat-label">Sequences</span></div>
+      <div class="stat"><span class="stat-val">O(N²T)</span><span class="stat-label">Complexity</span></div>
+    </div>
+  </div>
+  <div class="hero-visual">
+    <div class="state-machine-live">
+      <div class="sm-title">Live State Machine <span class="live-dot"></span></div>
+      <canvas id="stateMachineCanvas" width="300" height="220"></canvas>
+      <div class="sm-obs" id="smObs">Current Observation: —</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ HMM DEFINITION ============ -->
+<section class="section" id="definition">
+  <div class="container">
+    <div class="section-label">01 / MODEL DEFINITION</div>
+    <h2 class="section-title">Hidden Markov Model</h2>
+    <p class="section-intro">An HMM is defined by the parameter set \(\lambda = (A, B, \pi)\). At each time step, the system occupies a hidden state that generates an observable output.</p>
+
+    <div class="cards-grid">
+      <div class="card card-accent1">
+        <div class="card-icon">π</div>
+        <h3>Initial Probabilities</h3>
+        <div class="math-box">\[\pi_i = P(q_1 = i)\]</div>
+        <p>Belief that the system starts in state \(i\). All values sum to 1: \(\sum_i \pi_i = 1\).</p>
+      </div>
+      <div class="card card-accent2">
+        <div class="card-icon">A</div>
+        <h3>Transition Probabilities</h3>
+        <div class="math-box">\[a_{ij} = P(q_{t+1} = j \mid q_t = i)\]</div>
+        <p>How the system evolves internally. Each row sums to 1: \(\sum_j a_{ij} = 1\).</p>
+      </div>
+      <div class="card card-accent3">
+        <div class="card-icon">B</div>
+        <h3>Emission Probabilities</h3>
+        <div class="math-box">\[b_i(o) = P(O_t = o \mid q_t = i)\]</div>
+        <p>How hidden states generate visible observations. \(\sum_o b_i(o) = 1\).</p>
+      </div>
+    </div>
+
+    <div class="analogy-box">
+      <span class="analogy-icon">💡</span>
+      <div>
+        <strong>Analogy:</strong> Imagine listening to someone talk through a wall. You can hear the <em>words</em> (observations) but can't see their <em>mood</em> (hidden states). An HMM lets you <strong>guess their mood sequence</strong> from the words alone.
+      </div>
+    </div>
+
+    <!-- Example Setup -->
+    <div class="example-setup">
+      <h3>Numerical Example Setup</h3>
+      <p>States: <strong>Rainy (R)</strong>, <strong>Sunny (S)</strong> &nbsp;|&nbsp; Observations: <strong>Walk (W)</strong>, <strong>Shop (H)</strong></p>
+      <div class="matrix-row">
+        <div class="matrix-block">
+          <div class="matrix-label">Initial π</div>
+          <table class="matrix-table">
+            <tr><th>R</th><th>S</th></tr>
+            <tr><td>0.6</td><td>0.4</td></tr>
+          </table>
+        </div>
+        <div class="matrix-block">
+          <div class="matrix-label">Transition A</div>
+          <table class="matrix-table">
+            <tr><th></th><th>R</th><th>S</th></tr>
+            <tr><th>R</th><td>0.7</td><td>0.3</td></tr>
+            <tr><th>S</th><td>0.4</td><td>0.6</td></tr>
+          </table>
+        </div>
+        <div class="matrix-block">
+          <div class="matrix-label">Emission B</div>
+          <table class="matrix-table">
+            <tr><th></th><th>W</th><th>H</th></tr>
+            <tr><th>R</th><td>0.1</td><td>0.9</td></tr>
+            <tr><th>S</th><td>0.6</td><td>0.4</td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FORWARD ============ -->
+<section class="section section-alt" id="forward">
+  <div class="container">
+    <div class="section-label">02 / E-STEP</div>
+    <h2 class="section-title">Forward Probability α</h2>
+    <p class="section-intro">The forward variable captures the joint probability of seeing the first \(t\) observations <em>and</em> being in state \(i\) at time \(t\).</p>
+
+    <div class="formula-card">
+      <div class="formula-title">Definition</div>
+      <div class="formula-body">
+        \[\alpha_t(i) = P(O_1, O_2, \ldots, O_t,\; q_t = i \mid \lambda)\]
+      </div>
+    </div>
+
+    <div class="two-col">
+      <div class="formula-card">
+        <div class="formula-title">Initialization (t = 1)</div>
+        <div class="formula-body">\[\alpha_1(i) = \pi_i \cdot b_i(O_1)\]</div>
+        <p class="formula-note">Combines initial belief with compatibility of the first observation.</p>
+      </div>
+      <div class="formula-card">
+        <div class="formula-title">Recursion (t → t+1)</div>
+        <div class="formula-body">\[\alpha_{t+1}(j) = \left[\sum_{i=1}^{N} \alpha_t(i)\, a_{ij}\right] b_j(O_{t+1})\]</div>
+        <p class="formula-note">Depends on the entire past through α<sub>t</sub> and the current observation.</p>
+      </div>
+    </div>
+
+    <div class="worked-example">
+      <h3>Worked Example — O = (W, H)</h3>
+      <div class="step-flow">
+        <div class="step">
+          <div class="step-num">t=1</div>
+          <div class="step-body">
+            <p>\(\alpha_1(R) = \pi_R \cdot b_R(W) = 0.6 \times 0.1 = 0.06\)</p>
+            <p>\(\alpha_1(S) = \pi_S \cdot b_S(W) = 0.4 \times 0.6 = 0.24\)</p>
+          </div>
+        </div>
+        <div class="step-arrow">→</div>
+        <div class="step">
+          <div class="step-num">t=2</div>
+          <div class="step-body">
+            <p>\(\alpha_2(R) = (0.06 \times 0.7 + 0.24 \times 0.4) \times 0.9 = (0.042 + 0.096) \times 0.9 = 0.1242\)</p>
+            <p>\(\alpha_2(S) = (0.06 \times 0.3 + 0.24 \times 0.6) \times 0.4 = (0.018 + 0.144) \times 0.4 = 0.0648\)</p>
+          </div>
+        </div>
+        <div class="step-arrow">→</div>
+        <div class="step step-result">
+          <div class="step-num">P(O|λ)</div>
+          <div class="step-body">
+            <p>\(P(O \mid \lambda) = \sum_i \alpha_T(i) = 0.1242 + 0.0648 = 0.189\)</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ BACKWARD ============ -->
+<section class="section" id="backward">
+  <div class="container">
+    <div class="section-label">03 / E-STEP</div>
+    <h2 class="section-title">Backward Probability β</h2>
+    <p class="section-intro">The backward variable answers: if the system were in state \(i\) at time \(t\), how well could it explain all <em>future</em> observations?</p>
+
+    <div class="formula-card">
+      <div class="formula-title">Definition</div>
+      <div class="formula-body">
+        \[\beta_t(i) = P(O_{t+1}, O_{t+2}, \ldots, O_T \mid q_t = i,\; \lambda)\]
+      </div>
+    </div>
+
+    <div class="two-col">
+      <div class="formula-card">
+        <div class="formula-title">Initialization (t = T)</div>
+        <div class="formula-body">\[\beta_T(i) = 1 \quad \forall i\]</div>
+        <p class="formula-note">No future observations: every state is equally compatible.</p>
+      </div>
+      <div class="formula-card">
+        <div class="formula-title">Recursion (t ← t+1)</div>
+        <div class="formula-body">\[\beta_t(i) = \sum_{j=1}^{N} a_{ij}\, b_j(O_{t+1})\, \beta_{t+1}(j)\]</div>
+        <p class="formula-note">Backward probability summarizes the entire future into a single value per state.</p>
+      </div>
+    </div>
+
+    <div class="worked-example">
+      <h3>Worked Example — O = (W, H)</h3>
+      <div class="step-flow">
+        <div class="step">
+          <div class="step-num">t=2</div>
+          <div class="step-body">
+            <p>\(\beta_2(R) = 1,\quad \beta_2(S) = 1\)</p>
+          </div>
+        </div>
+        <div class="step-arrow">←</div>
+        <div class="step">
+          <div class="step-num">t=1</div>
+          <div class="step-body">
+            <p>\(\beta_1(R) = a_{RR}\,b_R(H)\,\beta_2(R) + a_{RS}\,b_S(H)\,\beta_2(S)\)</p>
+            <p>\(= 0.7 \times 0.9 \times 1 + 0.3 \times 0.4 \times 1 = 0.63 + 0.12 = 0.75\)</p>
+            <p>\(\beta_1(S) = 0.4 \times 0.9 + 0.6 \times 0.4 = 0.36 + 0.24 = 0.60\)</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ AUXILIARY VARIABLES ============ -->
+<section class="section section-alt" id="auxiliary">
+  <div class="container">
+    <div class="section-label">04 / SOFT CREDIT ASSIGNMENT</div>
+    <h2 class="section-title">Auxiliary Variables γ and ξ</h2>
+    <p class="section-intro">These variables perform <em>soft credit assignment</em> — distributing probability mass across all possible hidden state assignments.</p>
+
+    <div class="two-col">
+      <div class="formula-card highlight-card">
+        <div class="formula-title">State Responsibility γ</div>
+        <div class="formula-body">
+          \[\gamma_t(i) = P(q_t = i \mid O, \lambda) = \frac{\alpha_t(i)\,\beta_t(i)}{P(O \mid \lambda)}\]
+        </div>
+        <p class="formula-note">Fraction of belief that the system was in state \(i\) at time \(t\). Note: \(\sum_i \gamma_t(i) = 1\).</p>
+      </div>
+      <div class="formula-card highlight-card">
+        <div class="formula-title">Transition Responsibility ξ</div>
+        <div class="formula-body">
+          \[\xi_t(i,j) = \frac{\alpha_t(i)\,a_{ij}\,b_j(O_{t+1})\,\beta_{t+1}(j)}{P(O \mid \lambda)}\]
+        </div>
+        <p class="formula-note">Fraction of probability flow through transition \(i \to j\) at time \(t\).</p>
+      </div>
+    </div>
+
+    <div class="worked-example">
+      <h3>γ Computation — O = (W, H), P(O|λ) = 0.189</h3>
+      <div class="gamma-table-wrap">
+        <table class="gamma-table">
+          <thead>
+            <tr><th>t</th><th>Obs</th><th>α(R)</th><th>β(R)</th><th>γ(R)</th><th>α(S)</th><th>β(S)</th><th>γ(S)</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>1</td><td>W</td><td>0.0600</td><td>0.75</td><td class="highlight-cell">0.238</td><td>0.2400</td><td>0.60</td><td class="highlight-cell">0.762</td></tr>
+            <tr><td>2</td><td>H</td><td>0.1242</td><td>1.00</td><td class="highlight-cell">0.657</td><td>0.0648</td><td>1.00</td><td class="highlight-cell">0.343</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ PARAMETER UPDATES ============ -->
+<section class="section" id="updates">
+  <div class="container">
+    <div class="section-label">05 / M-STEP</div>
+    <h2 class="section-title">Parameter Update Equations</h2>
+    <p class="section-intro">Using the soft responsibilities computed in the E-step, we re-estimate model parameters as normalized expected counts.</p>
+
+    <div class="cards-grid">
+      <div class="update-card">
+        <div class="update-label">π (Initial)</div>
+        <div class="formula-body">\[\hat{\pi}_i = \gamma_1(i)\]</div>
+        <p>Simply the responsibility at the very first time step.</p>
+      </div>
+      <div class="update-card">
+        <div class="update-label">A (Transition)</div>
+        <div class="formula-body">\[\hat{a}_{ij} = \frac{\displaystyle\sum_{t=1}^{T-1} \xi_t(i,j)}{\displaystyle\sum_{t=1}^{T-1} \gamma_t(i)}\]</div>
+        <p>Expected transitions \(i\!\to\!j\) divided by expected time in state \(i\).</p>
+      </div>
+      <div class="update-card">
+        <div class="update-label">B (Emission)</div>
+        <div class="formula-body">\[\hat{b}_i(o) = \frac{\displaystyle\sum_{t:\,O_t=o} \gamma_t(i)}{\displaystyle\sum_{t=1}^{T} \gamma_t(i)}\]</div>
+        <p>Expected times state \(i\) emitted symbol \(o\), normalized.</p>
+      </div>
+    </div>
+
+    <div class="worked-example">
+      <h3>Emission Update — O = (W, H)</h3>
+      <div class="step-flow">
+        <div class="step">
+          <div class="step-num">R totals</div>
+          <div class="step-body">
+            <p>Total γ(R) = 0.238 + 0.657 = <strong>0.895</strong></p>
+            <p>γ(R) at W positions (t=1) = <strong>0.238</strong></p>
+            <p>\(\hat{b}_R(W) = 0.238/0.895 \approx 0.266\)</p>
+            <p>\(\hat{b}_R(H) = 0.657/0.895 \approx 0.734\)</p>
+          </div>
+        </div>
+        <div class="step-arrow">+</div>
+        <div class="step">
+          <div class="step-num">S totals</div>
+          <div class="step-body">
+            <p>Total γ(S) = 0.762 + 0.343 = <strong>1.105</strong></p>
+            <p>γ(S) at W positions (t=1) = <strong>0.762</strong></p>
+            <p>\(\hat{b}_S(W) = 0.762/1.105 \approx 0.689\)</p>
+            <p>\(\hat{b}_S(H) = 0.343/1.105 \approx 0.311\)</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="insight-box">
+      <h3>🔑 Key Insight</h3>
+      <p>Observations do not update probabilities directly — they <strong>reshape belief flow</strong>, and belief flow updates the parameters. This is the core intuition of the Baum–Welch / EM approach.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ LONG SEQUENCE ============ -->
+<section class="section section-alt" id="longseq">
+  <div class="container">
+    <div class="section-label">06 / CONVERGENCE</div>
+    <h2 class="section-title">Long Sequence Example</h2>
+    <p class="section-intro">O = (W, H, H, W, H) — five observations demonstrate how responsibilities stabilize over longer sequences.</p>
+
+    <div class="gamma-table-wrap">
+      <table class="gamma-table">
+        <thead>
+          <tr><th>t</th><th>Obs</th><th>γ(R)</th><th>γ(S)</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>1</td><td>W</td><td>0.23</td><td>0.77</td></tr>
+          <tr><td>2</td><td>H</td><td>0.66</td><td>0.34</td></tr>
+          <tr><td>3</td><td>H</td><td>0.71</td><td>0.29</td></tr>
+          <tr><td>4</td><td>W</td><td>0.31</td><td>0.69</td></tr>
+          <tr><td>5</td><td>H</td><td>0.74</td><td>0.26</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="two-col" style="margin-top:2rem;">
+      <div class="formula-card">
+        <div class="formula-title">Rainy Emission Update</div>
+        <div class="formula-body">\[\hat{b}_R(W) = \frac{0.23 + 0.31}{0.23+0.66+0.71+0.31+0.74} = \frac{0.54}{2.65} \approx 0.204\]</div>
+      </div>
+      <div class="formula-card">
+        <div class="formula-title">Sunny Emission Update</div>
+        <div class="formula-body">\[\hat{b}_S(W) = \frac{0.77 + 0.69}{0.77+0.34+0.29+0.69+0.26} = \frac{1.46}{2.35} \approx 0.621\]</div>
+      </div>
+    </div>
+
+    <div class="convergence-note">
+      <h3>Why Longer Sequences Are Better</h3>
+      <ul class="benefit-list">
+        <li><span class="bullet-icon">→</span> More observations = more expected counts, reducing variance</li>
+        <li><span class="bullet-icon">→</span> Emission probabilities converge smoothly through averaging</li>
+        <li><span class="bullet-icon">→</span> Transitions are reinforced repeatedly</li>
+        <li><span class="bullet-icon">→</span> Second iteration refines: \(\hat{b}_R(W): 0.204 \to 0.187\) (changes shrink)</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============ INTERACTIVE PLAYGROUND ============ -->
+<section class="section" id="playground">
+  <div class="container">
+    <div class="section-label">07 / INTERACTIVE</div>
+    <h2 class="section-title">Train Your Own HMM</h2>
+    <p class="section-intro">Configure parameters and run the Baum–Welch algorithm on a custom observation sequence.</p>
+
+    <div class="playground-wrap">
+      <div class="playground-controls">
+        <div class="ctrl-group">
+          <label>Hidden States (N)</label>
+          <div class="spinner">
+            <button class="spin-btn" data-target="nStates" data-dir="-1">−</button>
+            <input type="number" id="nStates" value="2" min="2" max="5"/>
+            <button class="spin-btn" data-target="nStates" data-dir="1">+</button>
+          </div>
+        </div>
+        <div class="ctrl-group">
+          <label>Observable Symbols (M)</label>
+          <div class="spinner">
+            <button class="spin-btn" data-target="mSymbols" data-dir="-1">−</button>
+            <input type="number" id="mSymbols" value="2" min="2" max="5"/>
+            <button class="spin-btn" data-target="mSymbols" data-dir="1">+</button>
+          </div>
+        </div>
+        <div class="ctrl-group">
+          <label>Max Iterations</label>
+          <div class="spinner">
+            <button class="spin-btn" data-target="maxIter" data-dir="-10">−</button>
+            <input type="number" id="maxIter" value="50" min="5" max="200"/>
+            <button class="spin-btn" data-target="maxIter" data-dir="10">+</button>
+          </div>
+        </div>
+        <div class="ctrl-group full-width">
+          <label>Observation Sequence (comma-separated integers, 0-indexed)</label>
+          <textarea id="obsInput" placeholder="e.g. 0,1,0,1,0">0,1,0,1,0</textarea>
+        </div>
+        <button class="btn-train" id="trainBtn">▶ Train Model</button>
+      </div>
+
+      <div class="playground-output" id="playgroundOutput" style="display:none;">
+        <div class="convergence-chart-wrap">
+          <h3>Optimization Convergence</h3>
+          <canvas id="convergenceChart" height="200"></canvas>
+        </div>
+        <div class="result-matrices" id="resultMatrices"></div>
+        <div class="log-area" id="logArea"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ VITERBI ============ -->
+<section class="section section-alt" id="viterbi">
+  <div class="container">
+    <div class="section-label">08 / DECODING</div>
+    <h2 class="section-title">Viterbi Algorithm</h2>
+    <p class="section-intro">While Baum–Welch <em>trains</em> the model, Viterbi <em>uses</em> it — finding the single most probable hidden state sequence (the "Golden Path") for a given observation.</p>
+
+    <div class="two-col">
+      <div class="formula-card">
+        <div class="formula-title">Viterbi Variable δ</div>
+        <div class="formula-body">\[\delta_t(j) = \max_{q_1,\ldots,q_{t-1}} P(q_1,\ldots,q_t=j,O_1,\ldots,O_t \mid \lambda)\]</div>
+        <p class="formula-note">Maximum probability of the most likely path ending in state \(j\) at time \(t\).</p>
+      </div>
+      <div class="formula-card">
+        <div class="formula-title">Recursion & Traceback</div>
+        <div class="formula-body">\[\delta_{t+1}(j) = \max_i[\delta_t(i)\,a_{ij}]\,b_j(O_{t+1})\]</div>
+        <p class="formula-note">Track argmax with \(\psi_{t+1}(j) = \arg\max_i[\delta_t(i)\,a_{ij}]\) for traceback.</p>
+      </div>
+    </div>
+
+    <div class="viterbi-demo">
+      <h3>Interactive Viterbi Decoder</h3>
+      <div class="viterbi-controls">
+        <input type="text" id="viterbiObs" placeholder="Observation sequence, e.g. 0,1,0,0,1" value="0,1,0,0,1"/>
+        <button class="btn-decode" id="decodeBtn">▶ Decode</button>
+      </div>
+      <div id="viterbiResult"></div>
+      <div id="viterbiTrellis"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ MATHEMATICAL DEEP DIVE ============ -->
+<section class="section" id="deepdive">
+  <div class="container">
+    <div class="section-label">09 / DEEP DIVE</div>
+    <h2 class="section-title">Mathematical Deep Dive</h2>
+
+    <div class="deep-dive-grid">
+      <div class="deep-card">
+        <div class="deep-num">①</div>
+        <h3>Why EM Converges</h3>
+        <p>Baum–Welch is guaranteed to never decrease \(\log P(O|\lambda)\). Each iteration finds parameters that satisfy:</p>
+        <div class="math-box">\[P(O \mid \hat{\lambda}) \geq P(O \mid \lambda)\]</div>
+        <p>This monotonic improvement continues until convergence to a local maximum (EM does not guarantee global optima).</p>
+      </div>
+      <div class="deep-card">
+        <div class="deep-num">②</div>
+        <h3>Scaling for Numerical Stability</h3>
+        <p>Forward/backward probabilities decay exponentially with \(T\). To avoid underflow, use scaled variables:</p>
+        <div class="math-box">\[\hat{\alpha}_t(i) = \frac{\alpha_t(i)}{c_t}, \quad c_t = \sum_i \alpha_t(i)\]</div>
+        <p>The log-likelihood is then \(\log P(O|\lambda) = -\sum_t \log c_t\).</p>
+      </div>
+      <div class="deep-card">
+        <div class="deep-num">③</div>
+        <h3>Complexity</h3>
+        <p>Per iteration of Baum–Welch:</p>
+        <div class="math-box">\[\mathcal{O}(N^2 T)\text{ time},\quad \mathcal{O}(NT)\text{ space}\]</div>
+        <p>Where \(N\) = states, \(T\) = sequence length. The naive brute-force approach is \(\mathcal{O}(N^T)\) — exponential.</p>
+      </div>
+      <div class="deep-card">
+        <div class="deep-num">④</div>
+        <h3>Multiple Observation Sequences</h3>
+        <p>For \(K\) sequences \(\{O^{(k)}\}\), the update equations generalize by summing across sequences:</p>
+        <div class="math-box">\[\hat{a}_{ij} = \frac{\sum_{k=1}^K \sum_{t=1}^{T_k-1} \xi_t^{(k)}(i,j)}{\sum_{k=1}^K \sum_{t=1}^{T_k-1} \gamma_t^{(k)}(i)}\]</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FOOTER ============ -->
+<footer class="footer">
+  <div class="container">
+    <div class="footer-content">
+      <div class="footer-brand">HMM Baum–Welch Explorer</div>
+      <p class="footer-note">Built with mathematical precision. All formulas follow Rabiner (1989) — <em>A Tutorial on Hidden Markov Models</em>.</p>
+    </div>
+  </div>
+</footer>
+
+<script src="script.js"></script>
+</body>
+</html>

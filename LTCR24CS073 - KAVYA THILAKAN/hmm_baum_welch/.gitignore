@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+venv/
+env/
+ENV/
+
+# PyCharm
+.idea/
+*.iml
+.vscode/
+
+# Flask
+instance/
+.webassets-cache
+
+# Static files (but not the diagrams)
+static/
+!static/.gitkeep
+
+# Logs
+*.log
+*.pot
+*.pid
+*.seed
+
+# OS
+.DS_Store
+Thumbs.db

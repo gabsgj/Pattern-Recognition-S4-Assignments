@@ -1,0 +1,5 @@
+Observation sequence:
+0 1 0 1 0
+
+Number of states: 2
+Number of observation symbols: 2

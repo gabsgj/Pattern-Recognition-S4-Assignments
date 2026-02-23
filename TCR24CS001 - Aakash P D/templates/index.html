@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>HMM Baum-Welch Visualizer</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <h1>HMM Baum-Welch Visualizer</h1>
+    
+    <form method="post">
+        {% if error %}
+        <p style="color:red;">{{ error }}</p>
+        {% endif %}
+
+        Observed Sequence (comma-separated): 
+        <input type="text" name="obs" placeholder="0,1,0,2"><br><br>
+        Number of Hidden States: 
+        <input type="number" name="hidden" placeholder="2"><br><br>
+        <input type="submit" value="Run">
+    </form>
+
+    {% if A %}
+    <h3>Transition Matrix A</h3>
+    <pre>{{ A }}</pre>
+    <h3>Emission Matrix B</h3>
+    <pre>{{ B }}</pre>
+    <h3>Initial Distribution π</h3>
+    <pre>{{ pi }}</pre>
+    <h3>Probability P(O|λ)</h3>
+    <pre>{{ P_O }}</pre>
+
+    <h3>State Transition Diagram</h3>
+    <img src="/static/state_diagram.png" alt="State Diagram">
+    {% endif %}
+
+    <script src="/static/script.js"></script>
+</body>
+</html>

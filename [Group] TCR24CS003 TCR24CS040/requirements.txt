@@ -1,0 +1,5 @@
+flask
+numpy
+graphviz
+state-transition-diagrams
+gunicorn

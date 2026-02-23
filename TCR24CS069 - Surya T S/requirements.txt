@@ -1,0 +1,8 @@
+hmmlearn
+numpy
+matplotlib
+networkx
+streamlit
+plotly
+graphviz
+streamlit-echarts

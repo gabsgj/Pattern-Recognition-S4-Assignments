@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Coin Toss HMM Visualization</title>
+    <!-- Use Flask blueprint served JS/CSS -->
+    <link rel="stylesheet" href="/std/css/state_diagram.css">
+    <!-- Add D3.js from CDN -->
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script src="/std/js/state_diagram.js"></script>
+    <style>
+        body { font-family: Arial; background: #f0f0f0; margin: 20px; }
+        #diagram-container { width: 600px; height: 400px; margin: auto; border: 1px solid #ccc; }
+        #inspector { width: 600px; margin: 20px auto; padding: 10px; border: 1px solid #ccc; background: #fff; }
+    </style>
+</head>
+<body>
+<h2 style="text-align:center;">Coin Toss HMM</h2>
+
+<div id="diagram-container" class="std-canvas"></div>
+<div id="inspector" class="std-inspector mt-4"></div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const diagram = new StateTransitionDiagram('#diagram-container', '#inspector', {
+        particlesEnabled: true,
+        decongestionEnabled: false,
+        animationSpeed: 1
+    });
+
+ fetch("/hmm-data")
+    .then(res => res.json())
+    .then(data => {
+        let i = 0;
+        function playIteration() {
+            if (i >= data.iterations.length) return;
+            const iter = data.iterations[i];
+            diagram.feedIteration({
+                A: iter.A,
+                B: iter.B,
+                pi: iter.pi,
+                iteration: iter.iteration,
+                log_likelihood: iter.log_likelihood,
+                state_labels: data.state_labels,
+                obs_labels: data.obs_labels
+            });
+            diagram.onComplete();
+            i++;
+            setTimeout(playIteration, 1000); // 1 second per iteration
+        }
+        playIteration();
+    });
+});
+</script>
+</body>
+</html>

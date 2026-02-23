@@ -1,0 +1,27 @@
+function train() {
+    const seq = document.getElementById("sequence").value.split(",").map(Number);
+    const states = document.getElementById("states").value;
+    const obs = document.getElementById("obs").value;
+
+    fetch("/train", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({sequence: seq, states: states, observations: obs})
+    })
+    .then(res => res.json())
+    .then(data => animate(data));
+}
+
+function animate(data) {
+    let svg = d3.select("#viz");
+    svg.selectAll("*").remove();
+
+    let y = 50;
+    data.forEach(iter => {
+        svg.append("text")
+           .attr("x", 20)
+           .attr("y", y)
+           .text(`Iter ${iter.iteration} | LogLik = ${iter.log_likelihood.toFixed(3)}`);
+        y += 20;
+    });
+}

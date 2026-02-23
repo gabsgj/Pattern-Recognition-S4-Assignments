@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>HMM Baum-Welch Algorithm - Advanced</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        .header {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            color: #666;
+            font-size: 14px;
+        }
+        .input-panel {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+        }
+        .input-group {
+            display: flex;
+            flex-direction: column;
+        }
+        .input-group label {
+            font-weight: bold;
+            color: #555;
+            margin-bottom: 5px;
+            font-size: 12px;
+            text-transform: uppercase;
+        }
+        .input-group input {
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 5px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        .input-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 5px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.3s;
+            grid-column: span 4;
+        }
+        button:hover {
+            transform: translateY(-2px);
+        }
+        .live-metrics {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+        }
+        .metric {
+            text-align: center;
+        }
+        .metric-label {
+            color: #666;
+            font-size: 12px;
+            text-transform: uppercase;
+        }
+        .metric-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #333;
+        }
+        .metric-status {
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            display: inline-block;
+        }
+        .status-converged {
+            background: #4caf50;
+            color: white;
+        }
+        .status-training {
+            background: #ff9800;
+            color: white;
+        }
+        .plots-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .plot-card {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        .plot-card h3 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 16px;
+        }
+        .plot-card img {
+            width: 100%;
+            height: auto;
+            border-radius: 5px;
+        }
+        .results-panel {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+        }
+        .matrix-box {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+        }
+        .matrix-box h4 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .matrix-display {
+            background: white;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            overflow-x: auto;
+        }
+        .matrix-display pre {
+            margin: 0;
+            font-family: 'Courier New', monospace;
+        }
+        .fsm-diagram {
+            grid-column: span 2;
+            text-align: center;
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+        }
+        .fsm-diagram img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 5px;
+        }
+        .intermediate-table {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            overflow-x: auto;
+            margin-bottom: 20px;
+        }
+        .intermediate-table h3 {
+            color: #333;
+            margin-bottom: 15px;
+        }
+        .intermediate-table table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+        }
+        .intermediate-table th {
+            background: #f0f0f0;
+            padding: 10px;
+            text-align: left;
+        }
+        .intermediate-table td {
+            padding: 8px;
+            border-bottom: 1px solid #e0e0e0;
+            font-family: 'Courier New', monospace;
+        }
+        .intermediate-table tr:hover {
+            background: #f5f5f5;
+        }
+        .error {
+            background: #ffebee;
+            color: #c62828;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .info-text {
+            color: #666;
+            font-size: 12px;
+            margin-top: 5px;
+        }
+        .section-title {
+            color: #333;
+            margin: 20px 0 10px 0;
+            font-size: 18px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎯 Hidden Markov Model — Baum-Welch Algorithm</h1>
+            <div class="subtitle">Advanced Implementation with Real-time Visualization</div>
+        </div>
+
+        <form method="POST">
+            <div class="input-panel">
+                <div class="input-group">
+                    <label>Hidden States (N)</label>
+                    <input type="number" name="hidden_states" min="1" max="10" 
+                           value="{{ request.form.hidden_states or '2' }}" required>
+                </div>
+                <div class="input-group">
+                    <label>Symbols (M) - Optional</label>
+                    <input type="number" name="symbols" min="1" max="10" 
+                           value="{{ request.form.symbols or '' }}" placeholder="Auto-detect">
+                    <div class="info-text">Leave empty to auto-detect</div>
+                </div>
+                <div class="input-group">
+                    <label>Max Iterations</label>
+                    <input type="number" name="max_iter" min="1" max="1000" 
+                           value="{{ request.form.max_iter or '100' }}" required>
+                </div>
+                <div class="input-group">
+                    <label>Observations</label>
+                    <input type="text" name="observations" 
+                           value="{{ request.form.observations or '0,1,2,0,0,1,2,1,0,2,2' }}" 
+                           placeholder="0,1,2,0,0,1,2" required>
+                </div>
+                <button type="submit">🚀 Train Model</button>
+            </div>
+        </form>
+
+        {% if error %}
+        <div class="error">{{ error }}</div>
+        {% endif %}
+
+        {% if result %}
+        <!-- Live Metrics (NEW) -->
+        <div class="live-metrics">
+            <div class="metric">
+                <div class="metric-label">Iteration</div>
+                <div class="metric-value">{{ result.iterations }} / {{ request.form.max_iter or '100' }}</div>
+            </div>
+            <div class="metric">
+                <div class="metric-label">Log-Likelihood</div>
+                <div class="metric-value">{{ "%.4f"|format(result.final_log_likelihood) }}</div>
+            </div>
+            <div class="metric">
+                <div class="metric-label">Δ (Change)</div>
+                <div class="metric-value">{{ "%.4e"|format(result.delta) }}</div>
+            </div>
+            <div class="metric">
+                <div class="metric-label">Status</div>
+                <div class="metric-status {% if result.converged %}status-converged{% else %}status-training{% endif %}">
+                    {{ "Converged" if result.converged else "Training" }}
+                </div>
+            </div>
+        </div>
+
+        <!-- Plots Grid (ORIGINAL + NEW) -->
+        <div class="plots-grid">
+            <!-- ORIGINAL Likelihood Graph -->
+            {% if graph_path %}
+            <div class="plot-card">
+                <h3>📈 Likelihood Convergence — P(O|λ)</h3>
+                <img src="{{ graph_path }}?{{ range(1, 1000) | random }}" alt="Likelihood Graph">
+            </div>
+            {% endif %}
+            
+            <!-- NEW: Log-Likelihood Plot -->
+            {% if plots.log_likelihood %}
+            <div class="plot-card">
+                <h3>📉 Log-Likelihood Convergence — log P(O|λ)</h3>
+                <img src="data:image/png;base64,{{ plots.log_likelihood }}" alt="Log-Likelihood">
+            </div>
+            {% endif %}
+            
+            <!-- NEW: Parameter Evolution Plot -->
+            {% if plots.param_evolution %}
+            <div class="plot-card">
+                <h3>📊 Parameter Evolution — A[i][j] over iterations</h3>
+                <img src="data:image/png;base64,{{ plots.param_evolution }}" alt="Parameter Evolution">
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Results Panel (ORIGINAL matrices) -->
+        <div class="results-panel">
+            <div class="matrix-box">
+                <h4>Transition Matrix A</h4>
+                <div class="matrix-display">
+                    <pre>{{ result.A }}</pre>
+                </div>
+            </div>
+            <div class="matrix-box">
+                <h4>Emission Matrix B</h4>
+                <div class="matrix-display">
+                    <pre>{{ result.B }}</pre>
+                </div>
+            </div>
+            <div class="matrix-box">
+                <h4>Initial Distribution π</h4>
+                <div class="matrix-display">
+                    <pre>{{ result.pi }}</pre>
+                </div>
+            </div>
+            <div class="matrix-box">
+                <h4>Final P(O|λ)</h4>
+                <div class="matrix-display">
+                    <pre>{{ "%.6e"|format(result.final_likelihood) }}</pre>
+                </div>
+            </div>
+        </div>
+
+        <!-- NEW: FSM Diagram -->
+        {% if diagram_path %}
+        <div class="fsm-diagram">
+            <h3>🔄 State Transition Diagram</h3>
+            <img src="{{ diagram_path }}?{{ range(1, 1000) | random }}" alt="FSM Diagram">
+        </div>
+        {% endif %}
+
+        <!-- NEW: Intermediate Variables Table -->
+        {% if result.intermediate_table %}
+        <div class="intermediate-table">
+            <h3>📋 Intermediate Variables (α, β, γ) — First 10 time steps</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>t</th>
+                        <th>α (Forward Probabilities)</th>
+                        <th>β (Backward Probabilities)</th>
+                        <th>γ (State Occupation)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in result.intermediate_table %}
+                    <tr>
+                        <td>{{ row.t }}</td>
+                        <td>[{{ row.alpha|join(', ') }}]</td>
+                        <td>[{{ row.beta|join(', ') }}]</td>
+                        <td>[{{ row.gamma|join(', ') }}]</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+        
+        <!-- Summary of training (ORIGINAL info) -->
+        <div style="background: white; padding: 15px; border-radius: 10px; margin-top: 20px;">
+            <p><strong>Sequence trained:</strong> {{ request.form.observations }}</p>
+            <p><strong>Unique observation symbols (M):</strong> 
+                {% if request.form.symbols %}
+                    {{ request.form.symbols }}
+                {% else %}
+                    {{ request.form.observations.split(',')|map('int')|list|unique|list|length }} (auto-detected)
+                {% endif %}
+            </p>
+            <p><strong>Sequence length:</strong> {{ request.form.observations.split(',')|length }}</p>
+            <p><strong>Iterations completed:</strong> {{ result.iterations }}</p>
+        </div>
+        {% endif %}
+    </div>
+</body>
+</html>

@@ -1,0 +1,76 @@
+.deep-dive-container {
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+}
+
+.deep-dive-desc {
+    color: #a1a1aa;
+    font-size: 0.95rem;
+    margin-bottom: 2rem;
+    line-height: 1.6;
+}
+
+.empty-math {
+    color: #a1a1aa;
+    text-align: center;
+    font-style: italic;
+    padding: 2rem;
+}
+
+.math-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 2rem;
+}
+
+.math-matrix-block h4 {
+    font-family: 'Outfit', sans-serif;
+    color: #e4e4e7;
+    margin-top: 0;
+    margin-bottom: 1rem;
+    font-size: 1.1rem;
+    text-transform: capitalize;
+}
+
+.math-table-container {
+    overflow-x: auto;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.math-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: 'Inter', monospace;
+    font-size: 0.85rem;
+}
+
+.math-table th,
+.math-table td {
+    padding: 0.75rem 1rem;
+    text-align: right;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.math-table th {
+    background: rgba(255, 255, 255, 0.02);
+    color: #a1a1aa;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.t-row-header {
+    color: #60a5fa !important;
+    text-align: left !important;
+}
+
+.math-table td {
+    color: #fbbf24;
+}
+
+.math-table tbody tr:last-child th,
+.math-table tbody tr:last-child td {
+    border-bottom: none;
+}

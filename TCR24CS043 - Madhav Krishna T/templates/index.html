@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>HMM Training Dashboard</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+:root{
+--bg:#1b2436;
+--panel:#25324a;
+--panel-2:#2d3b57;
+--text:#eaf1ff;
+--muted:#b8c5dd;
+--border:#3c4d6e;
+}
+body{background:var(--bg);color:var(--text)}
+.panel{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;box-shadow:0 8px 20px rgba(0,0,0,0.25)}
+h5,h6,label{color:var(--text)}
+.mobile-scroll{
+overflow-x:auto;
+}
+.matrix td{
+border:1px solid var(--border);
+padding:6px 10px;
+text-align:center;
+font-family:monospace;
+}
+.matrix{border-collapse:collapse;margin:auto}
+.matrix-square{
+border-collapse:separate;
+border-spacing:6px;
+margin:auto;
+}
+.matrix-square td{
+width:58px;
+height:58px;
+min-width:58px;
+padding:0;
+text-align:center;
+vertical-align:middle;
+font-family:monospace;
+border:1px solid var(--border);
+border-radius:10px;
+}
+.matrix-square th{
+width:58px;
+min-width:58px;
+text-align:center;
+vertical-align:middle;
+color:#8fa0bf;
+font-weight:400;
+font-size:12px;
+padding:0;
+border:none;
+}
+.matrix-square th.row-hdr{
+width:30px;
+min-width:30px;
+text-align:right;
+padding-right:6px;
+}
+.matrix-square th.corner{
+width:30px;
+min-width:30px;
+}
+.status{
+font-size:14px;
+font-weight:600;
+color:var(--text);
+}
+.iter-scroll{
+max-height:520px;
+overflow-y:auto;
+scrollbar-width:thin;
+scrollbar-color:#6f83ad #2a3852;
+}
+.iter-scroll::-webkit-scrollbar{
+width:7px;
+}
+.iter-scroll::-webkit-scrollbar-track{
+background:#2a3852;
+border-radius:10px;
+}
+.iter-scroll::-webkit-scrollbar-thumb{
+background:#6f83ad;
+border-radius:10px;
+border:1px solid #2a3852;
+}
+.iter-scroll::-webkit-scrollbar-thumb:hover{
+background:#8ea1c7;
+}
+.table{
+--bs-table-bg:transparent;
+--bs-table-color:var(--text);
+--bs-table-border-color:var(--border);
+}
+.table thead th{color:var(--muted)}
+.form-control{
+background:var(--panel-2);
+border-color:var(--border);
+color:var(--text);
+}
+.form-control:focus{
+background:var(--panel-2);
+color:var(--text);
+border-color:#4f7bff;
+box-shadow:0 0 0 .2rem rgba(79,123,255,.2);
+}
+#graph{background:#22314a;border-radius:8px;border:1px solid var(--border)}
+@media (max-width: 991.98px){
+.container-fluid{padding:12px !important}
+.panel{padding:12px;margin-bottom:12px}
+h5{font-size:1.05rem}
+h6{font-size:.98rem}
+.status{font-size:13px}
+.iter-scroll{max-height:260px}
+.matrix-square{border-spacing:4px}
+.matrix-square td,.matrix-square th{
+width:46px;
+min-width:46px;
+height:46px;
+font-size:12px;
+}
+.matrix-square th.row-hdr,.matrix-square th.corner{
+width:24px;
+min-width:24px;
+}
+#graph{height:320px !important}
+}
+@media (max-width: 575.98px){
+#graph{height:280px !important}
+.table{font-size:12px}
+}
+</style>
+</head>
+
+<body>
+
+<div class="container-fluid p-4">
+<div class="row">
+
+<!-- LEFT -->
+<div class="col-12 col-lg-3">
+
+<div class="panel">
+<h5>Model Inputs</h5>
+<label for="seq" class="form-label mb-1">Sequence</label>
+<input id="seq" class="form-control mb-2" value="0 1 2 1 0 2 1 2 0 1 2 0 1 2 1 0 2 2 1 0 1 2 0 1 2 1 0 2 1 2">
+<label for="states" class="form-label mb-1">Hidden States</label>
+<input id="states" class="form-control mb-2" value="5">
+<label for="symbols" class="form-label mb-1">Observation Symbols</label>
+<input id="symbols" class="form-control mb-2" value="3">
+<label for="iters" class="form-label mb-1">Max Iterations</label>
+<input id="iters" class="form-control mb-2" value="100">
+<label for="tolerance" class="form-label mb-1">Tolerance</label>
+<input id="tolerance" class="form-control mb-2" value="0.0001">
+<button onclick="runModel()" class="btn btn-primary w-100">Train Model</button>
+</div>
+
+<div class="panel">
+<h5>Iteration Log</h5>
+<div class="iter-scroll">
+<table class="table table-sm">
+<thead><tr><th>Iter</th><th>logL</th><th>Δ</th></tr></thead>
+<tbody id="iterTable"></tbody>
+</table>
+</div>
+</div>
+
+</div>
+
+<!-- RIGHT -->
+<div class="col-12 col-lg-9">
+
+<div class="panel py-2">
+<div id="topConvergence" class="status"></div>
+</div>
+
+<div class="row">
+
+<div class="col-12 col-md-6"><div class="panel"><h6>Log Likelihood</h6><canvas id="logChart"></canvas></div></div>
+<div class="col-12 col-md-6"><div class="panel"><h6>P(O|λ)</h6><canvas id="probChart"></canvas></div></div>
+<div class="col-12 col-md-6"><div class="panel"><h6>Negative Log Likelihood</h6><canvas id="negChart"></canvas></div></div>
+<div class="col-12 col-md-6"><div class="panel"><h6>1 − P(O|λ)¹ᐟᵀ</h6><canvas id="compChart"></canvas></div></div>
+
+</div>
+
+<div class="panel">
+<h5>State Diagram</h5>
+<svg id="graph" style="width:100%; height:460px;"></svg>
+</div>
+
+<div class="row">
+<div class="col-12 col-md-6"><div class="panel"><h6>Transition Matrix A</h6><div class="mobile-scroll"><div id="A_table"></div></div></div></div>
+<div class="col-12 col-md-6"><div class="panel"><h6>Emission Matrix B</h6><div class="mobile-scroll"><div id="B_table"></div></div></div></div>
+</div>
+
+<div class="panel">
+<h6>Initial Distribution π</h6>
+<div class="mobile-scroll"><div id="pi_table"></div></div>
+</div>
+
+</div>
+</div>
+</div>
+
+<script>
+
+// ---------- CHART CONFIG ----------
+function makeChart(id,color){
+return new Chart(document.getElementById(id),{
+type:"line",
+data:{labels:[],datasets:[{
+data:[],
+borderColor:color,
+borderWidth:2,
+pointRadius:0,
+tension:0.25
+}]},
+options:{
+interaction:{mode:"index",intersect:false},
+plugins:{legend:{display:false}},
+scales:{
+x:{ticks:{color:"#94a3b8"},grid:{color:"rgba(148,163,184,0.12)"}},
+y:{ticks:{color:"#94a3b8"},grid:{color:"rgba(148,163,184,0.12)"}}
+}
+}
+});
+}
+
+let logChart=makeChart("logChart","#6366f1");
+let probChart=makeChart("probChart","#10b981");
+let negChart=makeChart("negChart","#ef4444");
+let compChart=makeChart("compChart","#f59e0b");
+
+let lastRunData=null;
+const STEP_DELAY_MS=140;
+
+// ---------- RUN MODEL ----------
+async function runModel(){
+
+const res=await fetch("/train",{method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({
+sequence:seq.value,
+states:states.value,
+symbols:symbols.value,
+iterations:iters.value,
+tolerance:tolerance.value
+})});
+
+const data=await res.json();
+lastRunData=data;
+
+clearAll();
+
+let T=seq.value.split(" ").length;
+
+for(let step of data.history){
+
+logChart.data.labels.push(step.iter);
+logChart.data.datasets[0].data.push(step.logL);
+probChart.data.labels.push(step.iter);
+probChart.data.datasets[0].data.push(step.P);
+negChart.data.labels.push(step.iter);
+negChart.data.datasets[0].data.push(step.negLL);
+
+let comp=1-Math.pow(step.P,1/T);
+compChart.data.labels.push(step.iter);
+compChart.data.datasets[0].data.push(comp);
+
+iterTable.innerHTML+=`<tr><td>${step.iter}</td><td>${step.logL.toFixed(4)}</td><td>${step.delta?.toFixed(4)}</td></tr>`;
+
+drawGraph(step.A,step.B,step.pi);
+logChart.update();
+probChart.update();
+negChart.update();
+compChart.update();
+await new Promise(r=>setTimeout(r,STEP_DELAY_MS));
+}
+
+drawMatrix(data.final.A,"A_table");
+drawMatrix(data.final.B,"B_table");
+drawMatrix([data.final.pi],"pi_table");
+
+let requested=data.meta?.requested_iterations ?? Number(iters.value);
+let executed=data.meta?.executed_iterations ?? data.history.length;
+let converged=Boolean(data.meta?.converged);
+let statusText=converged
+? `Converged after ${executed} iterations (requested ${requested}).`
+: `Stopped at ${executed} iterations (requested ${requested}); convergence not reached.`;
+topConvergence.textContent=statusText;
+}
+
+// ---------- MATRIX STYLE ----------
+
+function drawMatrix(M,div){
+
+let tableClass=(div==="A_table" || div==="B_table" || div==="pi_table") ? "matrix-square" : "matrix";
+let html=`<table class='${tableClass}'>`;
+let withLabels=(div==="A_table" || div==="B_table" || div==="pi_table");
+
+if(withLabels){
+let colPrefix=(div==="B_table") ? "O" : "S";
+html+="<tr><th class='corner'></th>";
+for(let c=0;c<M[0].length;c++){
+html+=`<th class='col-hdr'>${colPrefix}${c}</th>`;
+}
+html+="</tr>";
+}
+
+for(let rIdx=0;rIdx<M.length;rIdx++){
+let r=M[rIdx];
+html+="<tr>";
+if(withLabels){
+let rowLabel=(div==="pi_table") ? "π" : `S${rIdx}`;
+html+=`<th class='row-hdr'>${rowLabel}</th>`;
+}
+for(let v of r){
+
+let val=Number(v);
+
+// blue heatmap
+let bg=`rgba(59,130,246,${val})`;
+let color=val>0.7?"#f8fafc":"#dbeafe";
+
+html+=`<td style="background:${bg};color:${color}">${val.toFixed(3)}</td>`;
+}
+html+="</tr>";
+}
+html+="</table>";
+
+document.getElementById(div).innerHTML=html;
+}
+
+function clearAll(){
+[logChart,probChart,negChart,compChart].forEach(c=>{
+c.data.labels=[];c.data.datasets[0].data=[];c.update();
+});
+iterTable.innerHTML="";
+topConvergence.textContent="";
+}
+
+// ---------- CLEAN STATE DIAGRAM ----------
+function drawGraph(A,B,pi){
+
+const svg=document.getElementById("graph");
+svg.innerHTML="";
+
+const width=Math.max(svg.clientWidth,640);
+const height=Math.max(svg.clientHeight || 460,280);
+svg.setAttribute("viewBox",`0 0 ${width} ${height}`);
+
+const startY=60;
+const hiddenY=220;
+const obsY=390;
+const stateR=22;
+const obsW=52;
+const obsH=30;
+
+const baseColors=["#f97316","#3b82f6","#22c55e","#ef4444","#14b8a6"];
+function generatedStateColor(idx){
+const hue=Math.round((idx*137.508)%360);
+return `hsl(${hue} 78% 58%)`;
+}
+const stateColors=Array.from({length:A.length},(_,i)=>{
+return i<baseColors.length ? baseColors[i] : generatedStateColor(i);
+});
+
+let hx=A.map((_,i)=>width/(A.length+1)*(i+1));
+let ox=B[0].map((_,i)=>width/(B[0].length+1)*(i+1));
+
+function edgeLabel(x,y,text,edgeColor="#4b5f85",fill=edgeColor){
+const boxW=34;
+const boxH=16;
+svg.innerHTML+=`
+<rect x="${x-boxW/2}" y="${y-boxH+3}" width="${boxW}" height="${boxH}" rx="4"
+fill="${edgeColor}33" stroke="${edgeColor}" stroke-width="0.9"/>`;
+svg.innerHTML+=`
+<text x="${x}" y="${y-1}" text-anchor="middle" fill="${fill}" font-size="10" font-weight="600">${text}</text>`;
+}
+
+function darkenColor(hex,factor){
+let h=hex.replace("#","");
+if(h.length===3) h=h.split("").map(ch=>ch+ch).join("");
+let r=parseInt(h.slice(0,2),16);
+let g=parseInt(h.slice(2,4),16);
+let b=parseInt(h.slice(4,6),16);
+r=Math.max(0,Math.min(255,Math.round(r*(1-factor))));
+g=Math.max(0,Math.min(255,Math.round(g*(1-factor))));
+b=Math.max(0,Math.min(255,Math.round(b*(1-factor))));
+return `rgb(${r},${g},${b})`;
+}
+
+let markerDefs='<defs>';
+markerDefs+=`<marker id="arrowEdge" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="8.8" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="context-stroke"></path></marker>`;
+markerDefs+=`<marker id="arrowStart" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" refX="8.8" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 Z" fill="context-stroke"></path></marker>`;
+markerDefs+='</defs>';
+svg.innerHTML+=markerDefs;
+
+// START
+const startW=72;
+const startH=34;
+svg.innerHTML+=`<rect x="${(width/2)-(startW/2)}" y="${startY-(startH/2)}" width="${startW}" height="${startH}" rx="10" fill="#c7d2fe" stroke="#334155" stroke-width="1.6"/>`;
+svg.innerHTML+=`<text x="${width/2}" y="${startY+4}" text-anchor="middle" fill="#1e293b" font-size="11" font-weight="700">START</text>`;
+svg.innerHTML+=`<text x="18" y="${startY+4}" text-anchor="start" fill="#b8c5dd" font-size="12" font-weight="700">Start</text>`;
+
+// STATES
+svg.innerHTML+=`<text x="18" y="${hiddenY+4}" text-anchor="start" fill="#b8c5dd" font-size="12" font-weight="700">Hidden States</text>`;
+hx.forEach((x,i)=>{
+svg.innerHTML+=`<circle cx="${x}" cy="${hiddenY}" r="22" fill="${stateColors[i]}" stroke="#111827" stroke-width="1.2" />`;
+svg.innerHTML+=`<text x="${x}" y="${hiddenY+4}" text-anchor="middle" fill="white" font-size="12" font-weight="700">S${i}</text>`;
+});
+
+// OBS
+svg.innerHTML+=`<text x="18" y="${obsY+4}" text-anchor="start" fill="#b8c5dd" font-size="12" font-weight="700">Observations</text>`;
+ox.forEach((x,i)=>{
+svg.innerHTML+=`<rect x="${x-obsW/2}" y="${obsY-obsH/2}" width="${obsW}" height="${obsH}" rx="6" fill="#1e293b" stroke="#64748b"/>`;
+svg.innerHTML+=`<text x="${x}" y="${obsY+4}" text-anchor="middle" fill="#e2e8f0" font-size="12">O${i}</text>`;
+});
+
+// π arrows
+pi.forEach((p,i)=>{
+if(p<0.02) return;
+let x=hx[i];
+let w=Math.max(1.2,p*4);
+let midX=(width/2 + x)/2;
+let midY=(startY+18 + (hiddenY-stateR))/2 - 8;
+svg.innerHTML+=`
+<path d="M ${width/2} ${startY+18} Q ${x} ${startY+56} ${x} ${hiddenY-stateR}"
+fill="none" stroke="#c7d2fe"
+stroke-width="${w}" marker-end="url(#arrowStart)"/>`;
+edgeLabel(midX,midY,p.toFixed(2),"#c7d2fe");
+});
+
+// transitions
+for(let i=0;i<A.length;i++){
+let active=[];
+for(let j=0;j<A.length;j++){
+let p=A[i][j];
+if(p<0.05) continue;
+if(i===j){
+active.push({j,p,metric:hiddenY-stateR-22});
+continue;
+}
+let sep=32+Math.min(46,Math.abs(i-j)*10);
+let lane=(i<j)?-1:1;
+active.push({j,p,metric:hiddenY + lane*sep});
+}
+
+active.sort((a,b)=>a.metric-b.metric);
+let edgeColorByJ={};
+for(let idx=0;idx<active.length;idx++){
+let darkness=active.length===1 ? 0.12 : 0.06 + (idx/(active.length-1))*0.24;
+ edgeColorByJ[active[idx].j]=darkenColor(stateColors[i],darkness);
+}
+
+for(let j=0;j<A.length;j++){
+let p=A[i][j];
+if(p<0.05) continue;
+
+let x1=hx[i], x2=hx[j];
+let w=Math.max(1.2,p*4.5);
+let edgeColor=edgeColorByJ[j] || stateColors[i];
+let weightColor=stateColors[i];
+
+if(i===j){
+let loopTop=hiddenY-stateR-22;
+svg.innerHTML+=`
+<path d="M ${x1-stateR*0.62} ${hiddenY-stateR*0.25}
+C ${x1-stateR*1.6} ${loopTop}, ${x1+stateR*1.6} ${loopTop}, ${x1+stateR*0.62} ${hiddenY-stateR*0.25}"
+fill="none"
+stroke="${edgeColor}"
+stroke-width="${w}"
+marker-end="url(#arrowEdge)"/>`;
+edgeLabel(x1,loopTop+14,p.toFixed(2),weightColor);
+continue;
+}
+
+let midX=(x1+x2)/2;
+let sep=32+Math.min(46,Math.abs(i-j)*10);
+let lane=(i<j)?-1:1;
+let ctrlY=hiddenY + lane*sep;
+let startYEdge=hiddenY + lane*(stateR-2);
+let endYEdge=hiddenY + lane*(stateR-2);
+let endX=x2+(x1<x2?-stateR+2:stateR-2);
+
+svg.innerHTML+=`
+<path d="M ${x1} ${startYEdge}
+Q ${midX} ${ctrlY}
+${endX} ${endYEdge}"
+fill="none"
+stroke="${edgeColor}"
+stroke-width="${w}"
+marker-end="url(#arrowEdge)"/>`;
+edgeLabel(midX,ctrlY,p.toFixed(2),weightColor);
+}
+}
+
+// emissions
+for(let i=0;i<B.length;i++){
+for(let k=0;k<B[0].length;k++){
+let p=B[i][k];
+if(p<0.05) continue;
+let w=Math.max(1.1,p*4.2);
+let x1=hx[i];
+let x2=ox[k];
+let midX=(x1+x2)/2;
+let dip=42 + Math.abs(i-k)*7;
+let ctrlY=((hiddenY+obsY)/2) + dip;
+let c1x=x1 + (midX-x1)*0.45;
+let c2x=x2 - (x2-midX)*0.45;
+let y0=hiddenY+stateR-2;
+let y3=obsY-obsH/2;
+// Cubic Bezier midpoint at t=0.5
+let labelX=(x1 + 3*c1x + 3*c2x + x2)/8;
+let labelY=(y0 + 3*ctrlY + 3*ctrlY + y3)/8;
+
+svg.innerHTML+=`
+<path d="M ${x1} ${y0}
+ C ${c1x} ${ctrlY}, ${c2x} ${ctrlY}, ${x2} ${y3}"
+fill="none"
+stroke="${stateColors[i]}"
+stroke-width="${w}"
+stroke-dasharray="4,2"
+marker-end="url(#arrowEdge)"/>`;
+edgeLabel(labelX,labelY,p.toFixed(2),stateColors[i]);
+}
+}
+}
+</script>
+
+</body>
+</html>

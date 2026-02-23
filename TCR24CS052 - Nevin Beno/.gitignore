@@ -1,0 +1,8 @@
+__pycache__/
+venv/
+*.odp
+*.ods
+*.out
+*.exe
+.vscode/
+screenshots/

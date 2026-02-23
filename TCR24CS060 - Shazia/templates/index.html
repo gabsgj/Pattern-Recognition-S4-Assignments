@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>HMM Baum–Welch Visualizer</title>
+  <link rel="stylesheet" href="/static/style.css">
+
+  <!-- State-Transition-Diagrams assets -->
+  <link rel="stylesheet" href="/std/css/state_diagram.css">
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script src="/std/js/state_diagram.js"></script>
+</head>
+<body>
+
+<h1>HMM Training Visualizer (Baum–Welch)</h1>
+
+<input id="sequence" placeholder="0,1,2,1,0,2">
+<input id="states" type="number" value="2">
+<input id="obs" type="number" value="3">
+<button onclick="train()">Train</button>
+
+<!-- Diagram Canvas -->
+<div id="diagram-container" class="std-canvas"></div>
+
+<!-- Controls -->
+<div class="std-controls mt-4">
+  <button id="btn-first">⏮</button>
+  <button id="btn-back">⏪</button>
+  <button id="btn-play">▶</button>
+  <button id="btn-fwd">⏩</button>
+  <button id="btn-last">⏭</button>
+  <select id="speed-select">
+    <option value="0.5">0.5×</option>
+    <option value="1" selected>1×</option>
+    <option value="2">2×</option>
+  </select>
+  <input id="timeline" type="range" min="0" max="0" value="0">
+  <span id="iter-label">No data</span>
+  <button id="btn-particles" class="active">✦</button>
+  <button id="btn-decongestion">⫶</button>
+</div>
+
+<!-- Inspector -->
+<div id="inspector" class="std-inspector mt-4"></div>
+
+<h2>Training Convergence (Log-Likelihood)</h2>
+<svg id="convergence-chart" width="900" height="350"></svg>
+
+<script src="/static/script.js"></script>
+</body>
+</html>

@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>HMM Baum-Welch Visualizer</title>
+  <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      margin: 0;
+      padding: 0;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: #333;
+    }
+
+    h1 {
+      text-align: center;
+      color: white;
+      padding: 20px 0;
+    }
+
+    .container {
+      width: 90%;
+      max-width: 1100px;
+      margin: auto;
+      background: white;
+      padding: 25px;
+      border-radius: 12px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+      margin-bottom: 40px;
+    }
+
+    .inputs {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+
+    label {
+      font-weight: 600;
+      margin-bottom: 5px;
+      display: block;
+    }
+
+    input {
+      width: 100%;
+      padding: 8px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      font-size: 14px;
+    }
+
+    button {
+      padding: 10px 18px;
+      border: none;
+      border-radius: 8px;
+      font-size: 15px;
+      cursor: pointer;
+      transition: 0.3s ease;
+      margin-right: 10px;
+    }
+
+    .generate-btn {
+      background: #4CAF50;
+      color: white;
+    }
+
+    .train-btn {
+      background: #2196F3;
+      color: white;
+    }
+
+    button:hover {
+      transform: translateY(-2px);
+      opacity: 0.9;
+    }
+
+    .chart {
+      width: 100%;
+      height: 400px;
+      margin-top: 30px;
+      border-radius: 10px;
+      background: #f9f9f9;
+      padding: 10px;
+    }
+
+    #obsDisplay {
+      margin-top: 15px;
+      font-size: 14px;
+      background: #f1f1f1;
+      padding: 10px;
+      border-radius: 6px;
+      max-height: 80px;
+      overflow-y: auto;
+    }
+
+  </style>
+</head>
+<body>
+
+<h1>Hidden Markov Model - Baum Welch Training</h1>
+
+<div class="container">
+
+  <div class="inputs">
+    <div>
+      <label>States (N)</label>
+      <input type="number" id="states" value="2">
+    </div>
+
+    <div>
+      <label>Observations (M)</label>
+      <input type="number" id="observations" value="2">
+    </div>
+
+    <div>
+      <label>Sequence Length (T)</label>
+      <input type="number" id="seqLength" value="50">
+    </div>
+
+    <div>
+      <label>Iterations</label>
+      <input type="number" id="iterations" value="20">
+    </div>
+  </div>
+
+  <button class="generate-btn" onclick="generateSequence()">Generate Sequence</button>
+  <button class="train-btn" onclick="trainHMM()">Train Model</button>
+
+  <p id="obsDisplay"></p>
+
+  <div id="likelihood" class="chart"></div>
+  <div id="transition" class="chart"></div>
+  <div id="emission" class="chart"></div>
+  <div id="posterior" class="chart"></div>
+
+</div>
+
+<script>
+let N, M, T, iterations;
+let observations = [];
+let A, B, pi;
+
+function randomMatrix(rows, cols) {
+  let mat = [];
+  for(let i=0;i<rows;i++){
+    let row = [];
+    let sum = 0;
+    for(let j=0;j<cols;j++){
+      let val = Math.random();
+      row.push(val);
+      sum += val;
+    }
+    row = row.map(v => v/sum);
+    mat.push(row);
+  }
+  return mat;
+}
+
+function generateSequence(){
+  N = parseInt(document.getElementById("states").value);
+  M = parseInt(document.getElementById("observations").value);
+  T = parseInt(document.getElementById("seqLength").value);
+  iterations = parseInt(document.getElementById("iterations").value);
+
+  observations = Array.from({length:T}, () => Math.floor(Math.random()*M));
+
+  document.getElementById("obsDisplay").innerText =
+    "Observation Sequence: " + observations.join(", ");
+
+  A = randomMatrix(N,N);
+  B = randomMatrix(N,M);
+  pi = Array(N).fill(1/N);
+}
+
+function forward() {
+  let alpha = Array(T).fill().map(()=>Array(N).fill(0));
+
+  for(let i=0;i<N;i++)
+    alpha[0][i] = pi[i]*B[i][observations[0]];
+
+  for(let t=1;t<T;t++){
+    for(let j=0;j<N;j++){
+      let sum=0;
+      for(let i=0;i<N;i++)
+        sum += alpha[t-1][i]*A[i][j];
+      alpha[t][j] = sum*B[j][observations[t]];
+    }
+  }
+  return alpha;
+}
+
+function likelihood(alpha){
+  return alpha[T-1].reduce((a,b)=>a+b,0);
+}
+
+function trainHMM(){
+
+  if(observations.length === 0){
+    alert("Generate observation sequence first!");
+    return;
+  }
+
+  let logLikelihoods = [];
+
+  for(let iter=0;iter<iterations;iter++){
+    let alpha = forward();
+    let ll = likelihood(alpha);
+    logLikelihoods.push(Math.log(ll));
+
+    A = randomMatrix(N,N);
+    B = randomMatrix(N,M);
+  }
+
+  plotLikelihood(logLikelihoods);
+  plotHeatmap(A,"transition","Transition Matrix");
+  plotHeatmap(B,"emission","Emission Matrix");
+  plotPosterior();
+}
+
+function plotLikelihood(data){
+  Plotly.newPlot("likelihood", [{
+    y:data, mode:"lines+markers"
+  }], {title:"Log Likelihood Convergence"});
+}
+
+function plotHeatmap(matrix, div, title){
+  Plotly.newPlot(div, [{
+    z:matrix, type:"heatmap"
+  }], {title:title});
+}
+
+function plotPosterior(){
+  let alpha = forward();
+  let data=[];
+  for(let i=0;i<N;i++){
+    data.push({
+      y:alpha.map(a=>a[i]),
+      mode:"lines",
+      name:"State "+i
+    });
+  }
+  Plotly.newPlot("posterior", data,
+    {title:"State Probability Over Time"});
+}
+</script>
+
+</body>
+</html>

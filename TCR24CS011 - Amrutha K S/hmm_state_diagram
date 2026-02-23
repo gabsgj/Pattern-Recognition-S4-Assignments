@@ -1,0 +1,9 @@
+// State Transition Diagram
+digraph StateDiagram {
+	bgcolor="#FAFAFA" fontname=Helvetica fontsize=18 label="State Transition Diagram" labelloc=t pad=0.5 rankdir=LR
+	0 [label=S0 fillcolor="#2E86AB" fixedsize=true fontcolor=white fontname="Helvetica Bold" fontsize=14 height=1.0 shape=circle style=filled width=1.0]
+	1 [label=S1 fillcolor="#A23B72" fixedsize=true fontcolor=white fontname="Helvetica Bold" fontsize=14 height=1.0 shape=circle style=filled width=1.0]
+	0 -> 1 [label=1.000 color="#333333" fontcolor="#333333" fontname=Helvetica fontsize=10 penwidth=4.0]
+	1 -> 0 [label=0.667 color="#333333" fontcolor="#333333" fontname=Helvetica fontsize=10 penwidth=2.83]
+	1 -> 1 [label=0.333 color="#A23B72" fontcolor="#A23B72" fontname=Helvetica fontsize=10 penwidth=1.67]
+}

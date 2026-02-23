@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HMM Baum-Welch · Live Training</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        }
+
+        body {
+            background: #f5f5f5;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: #2c3e50;
+            color: white;
+            padding: 20px;
+            border-radius: 10px 10px 0 0;
+            margin-bottom: 20px;
+        }
+
+        .header h1 {
+            color: #00ff9d;
+            margin-bottom: 5px;
+        }
+
+        .header p {
+            color: #bdc3c7;
+        }
+
+        .split-layout {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 20px;
+        }
+
+        .control-panel {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .panel-title {
+            font-size: 12px;
+            text-transform: uppercase;
+            color: #7f8c8d;
+            margin-bottom: 20px;
+            font-weight: bold;
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+        }
+
+        .input-group label {
+            display: block;
+            font-size: 12px;
+            color: #34495e;
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        .input-group .hint {
+            font-size: 11px;
+            color: #95a5a6;
+            margin-top: 3px;
+        }
+
+        .train-btn {
+            width: 100%;
+            padding: 12px;
+            background: #2c3e50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .train-btn:hover {
+            background: #00ff9d;
+            color: #2c3e50;
+        }
+
+        .metrics-panel {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #ecf0f1;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .metric-card {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .metric-label {
+            font-size: 11px;
+            color: #7f8c8d;
+            text-transform: uppercase;
+        }
+
+        .metric-value {
+            font-size: 18px;
+            font-weight: bold;
+            color: #2c3e50;
+            margin-top: 5px;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .badge-training {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .badge-converged {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .content-panel {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #ecf0f1;
+            padding-bottom: 10px;
+        }
+
+        .tab {
+            padding: 8px 16px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            color: #7f8c8d;
+            border-radius: 5px;
+        }
+
+        .tab.active {
+            background: #2c3e50;
+            color: white;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .matrices-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .matrix-card {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+        }
+
+        .matrix-title {
+            font-size: 12px;
+            color: #7f8c8d;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+
+        .matrix-values {
+            background: white;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 13px;
+            overflow-x: auto;
+        }
+
+        .matrix-values pre {
+            margin: 0;
+        }
+
+        /* Fixed plot container */
+        .plots-container {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+        }
+
+        .plot-item {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            height: 320px;  /* Fixed height */
+            display: flex;
+            flex-direction: column;
+        }
+
+        .plot-item canvas {
+            width: 100% !important;
+            height: 250px !important;  /* Fixed height for canvas */
+            max-height: 250px !important;
+            flex-shrink: 0;
+        }
+
+        .plot-caption {
+            text-align: center;
+            margin-top: 10px;
+            color: #7f8c8d;
+            font-size: 12px;
+            font-weight: bold;
+            height: 30px;  /* Fixed height for caption */
+            line-height: 30px;
+        }
+
+        .diagram-container {
+            text-align: center;
+            min-height: 500px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+        }
+
+        .diagram-container img {
+            max-width: 100%;
+            max-height: 600px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .waiting-message {
+            text-align: center;
+            color: #95a5a6;
+            padding: 40px;
+            font-style: italic;
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .loading-spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #2c3e50;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>HMM BAUM WELCH.exe</h1>
+            <p>Hidden Markov Model · Live Training · v2.0.1</p>
+        </div>
+
+        <div class="split-layout">
+            <!-- Left Panel -->
+            <div class="control-panel">
+                <div class="panel-title">Configuration</div>
+                <form method="POST" id="trainForm">
+                    <div class="input-group">
+                        <label>Hidden States (N)</label>
+                        <input type="number" name="hidden_states" min="1" max="10" value="2" required>
+                    </div>
+
+                    <div class="input-group">
+                        <label>Symbols (M)</label>
+                        <input type="number" name="symbols" min="1" max="10" placeholder="auto">
+                        <div class="hint">Leave empty for auto-detection</div>
+                    </div>
+
+                    <div class="input-group">
+                        <label>Max Iterations</label>
+                        <input type="number" name="max_iter" min="1" max="1000" value="100" required>
+                    </div>
+
+                    <div class="input-group">
+                        <label>Observation Sequence</label>
+                        <input type="text" name="observations" value="0,1,2,0,0,1,2,1,0,2,2" required>
+                    </div>
+
+                    <button type="submit" class="train-btn">EXECUTE TRAINING</button>
+                </form>
+
+                <div id="metricsPanel" class="metrics-panel" style="display: none;">
+                    <div class="panel-title">Live Metrics</div>
+                    <div class="metrics-grid">
+                        <div class="metric-card">
+                            <div class="metric-label">Iteration</div>
+                            <div class="metric-value" id="metricIteration">-</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-label">Log-Likelihood</div>
+                            <div class="metric-value" id="metricLogLike">-</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-label">Delta</div>
+                            <div class="metric-value" id="metricDelta">-</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-label">Status</div>
+                            <div class="metric-value">
+                                <span id="metricStatus" class="status-badge badge-training">Waiting</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Panel -->
+            <div class="content-panel">
+                {% if error %}
+                <div class="error">{{ error }}</div>
+                {% endif %}
+
+                {% if session_id %}
+                <div class="tabs">
+                    <button class="tab active" onclick="showTab('matrices')">MATRICES</button>
+                    <button class="tab" onclick="showTab('plots')">PLOTS</button>
+                    <button class="tab" onclick="showTab('diagram')">FSM</button>
+                </div>
+
+                <!-- Matrices Tab -->
+                <div id="matrices" class="tab-content active">
+                    <div class="matrices-grid">
+                        <div class="matrix-card">
+                            <div class="matrix-title">Transition Matrix (A)</div>
+                            <div class="matrix-values"><pre id="matrixA">Waiting for data...</pre></div>
+                        </div>
+                        <div class="matrix-card">
+                            <div class="matrix-title">Emission Matrix (B)</div>
+                            <div class="matrix-values"><pre id="matrixB">Waiting for data...</pre></div>
+                        </div>
+                        <div class="matrix-card">
+                            <div class="matrix-title">Initial Distribution (π)</div>
+                            <div class="matrix-values"><pre id="matrixPi">Waiting for data...</pre></div>
+                        </div>
+                        <div class="matrix-card">
+                            <div class="matrix-title">Final P(O|λ)</div>
+                            <div class="matrix-values"><pre id="finalLikelihood">-</pre></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Plots Tab with three plots -->
+                <div id="plots" class="tab-content">
+                    <div class="plots-container">
+                        <div class="plot-item">
+                            <canvas id="likelihoodChart"></canvas>
+                            <div class="plot-caption">Likelihood Convergence</div>
+                        </div>
+                        <div class="plot-item">
+                            <canvas id="logLikelihoodChart"></canvas>
+                            <div class="plot-caption">Log-Likelihood Convergence</div>
+                        </div>
+                        <div class="plot-item">
+                            <canvas id="parameterChart"></canvas>
+                            <div class="plot-caption">Parameter Evolution (A[i][j])</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- FSM Tab -->
+                <div id="diagram" class="tab-content">
+                    <div class="diagram-container" id="diagramContainer">
+                        <div class="waiting-message">Diagram will appear after training completes...</div>
+                    </div>
+                </div>
+                {% else %}
+                <div class="waiting-message">
+                    Enter parameters and click EXECUTE TRAINING to begin
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const sessionId = "{{ session_id }}";
+        let pollInterval = null;
+        let charts = {};
+
+        function formatMatrix(matrix) {
+            if (!matrix || !matrix.length) return 'No data';
+            return matrix.map(row =>
+                row.map(v => v.toFixed(4)).join('  ')
+            ).join('\n');
+        }
+
+        function updateParameterChart(A_history) {
+            if (!A_history || A_history.length === 0) return;
+
+            const iterations = Array.from({ length: A_history.length }, (_, i) => i + 1);
+            const N = A_history[0].length;
+
+            // Prepare datasets for each transition
+            const datasets = [];
+            const colors = ['#e74c3c', '#3498db', '#2ecc71', '#f39c12', '#9b59b6', '#1abc9c', '#e67e22', '#e91e63'];
+
+            for (let i = 0; i < N; i++) {
+                for (let j = 0; j < N; j++) {
+                    const data = A_history.map(a => a[i][j]);
+                    datasets.push({
+                        label: `A[${i}][${j}]`,
+                        data: data,
+                        borderColor: colors[(i*N + j) % colors.length],
+                        backgroundColor: 'transparent',
+                        borderWidth: 2,
+                        tension: 0.1,
+                        pointRadius: 1,
+                        pointHoverRadius: 4
+                    });
+                }
+            }
+
+            if (!charts.parameter) {
+                const ctx = document.getElementById('parameterChart').getContext('2d');
+                charts.parameter = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: iterations,
+                        datasets: datasets
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: true,
+                                position: 'top',
+                                labels: {
+                                    font: { size: 9 },
+                                    boxWidth: 12
+                                }
+                            },
+                            tooltip: {
+                                mode: 'index',
+                                intersect: false
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                max: 1,
+                                grid: { color: '#ecf0f1' },
+                                title: {
+                                    display: true,
+                                    text: 'Probability',
+                                    font: { size: 10 }
+                                }
+                            },
+                            x: {
+                                grid: { display: false },
+                                title: {
+                                    display: true,
+                                    text: 'Iteration',
+                                    font: { size: 10 }
+                                }
+                            }
+                        },
+                        interaction: {
+                            mode: 'nearest',
+                            axis: 'x',
+                            intersect: false
+                        }
+                    }
+                });
+            } else {
+                charts.parameter.data.labels = iterations;
+                charts.parameter.data.datasets = datasets;
+                charts.parameter.update();
+            }
+        }
+
+        function updateUI(progress) {
+            if (!progress || progress.length === 0) return;
+
+            const latest = progress[progress.length - 1];
+
+            // Show metrics panel
+            document.getElementById('metricsPanel').style.display = 'block';
+
+            // Update metrics
+            document.getElementById('metricIteration').innerText = latest.iteration;
+            document.getElementById('metricLogLike').innerText = latest.log_likelihood.toFixed(4);
+            document.getElementById('metricDelta').innerText = latest.delta.toExponential(4);
+
+            const statusEl = document.getElementById('metricStatus');
+            if (latest.converged) {
+                statusEl.innerText = 'CONVERGED';
+                statusEl.className = 'status-badge badge-converged';
+            } else {
+                statusEl.innerText = 'TRAINING';
+                statusEl.className = 'status-badge badge-training';
+            }
+
+            // Update matrices
+            if (latest.A) {
+                document.getElementById('matrixA').innerText = formatMatrix(latest.A);
+            }
+            if (latest.B) {
+                document.getElementById('matrixB').innerText = formatMatrix(latest.B);
+            }
+            if (latest.pi) {
+                document.getElementById('matrixPi').innerText = latest.pi.map(v => v.toFixed(4)).join('  ');
+            }
+            if (latest.likelihoods && latest.likelihoods.length > 0) {
+                const final = latest.likelihoods[latest.likelihoods.length - 1];
+                document.getElementById('finalLikelihood').innerText = final.toExponential(6);
+            }
+
+            // Update charts
+            if (latest.log_likelihoods && latest.log_likelihoods.length > 0) {
+                updateCharts(latest.log_likelihoods, latest.likelihoods);
+            }
+
+            // Update parameter evolution chart
+            if (latest.A_history && latest.A_history.length > 0) {
+                updateParameterChart(latest.A_history);
+            }
+
+            // Load diagram if complete
+            if (latest.complete) {
+                clearInterval(pollInterval);
+                setTimeout(loadDiagram, 1000);
+            }
+        }
+
+        function updateCharts(logll, ll) {
+            const iterations = Array.from({ length: logll.length }, (_, i) => i + 1);
+
+            if (!charts.likelihood) {
+                // Likelihood chart
+                const ctx1 = document.getElementById('likelihoodChart').getContext('2d');
+                charts.likelihood = new Chart(ctx1, {
+                    type: 'line',
+                    data: {
+                        labels: iterations,
+                        datasets: [{
+                            label: 'P(O|λ)',
+                            data: ll,
+                            borderColor: '#2c3e50',
+                            backgroundColor: 'rgba(44,62,80,0.1)',
+                            borderWidth: 2,
+                            tension: 0.1,
+                            pointRadius: 2,
+                            pointHoverRadius: 5
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: { mode: 'index', intersect: false }
+                        },
+                        scales: {
+                            y: {
+                                title: { display: true, text: 'P(O|λ)', font: { size: 10 } },
+                                type: 'logarithmic',
+                                grid: { color: '#ecf0f1' }
+                            },
+                            x: {
+                                title: { display: true, text: 'Iteration', font: { size: 10 } },
+                                grid: { display: false }
+                            }
+                        }
+                    }
+                });
+
+                // Log-likelihood chart
+                const ctx2 = document.getElementById('logLikelihoodChart').getContext('2d');
+                charts.loglikelihood = new Chart(ctx2, {
+                    type: 'line',
+                    data: {
+                        labels: iterations,
+                        datasets: [{
+                            label: 'Log P(O|λ)',
+                            data: logll,
+                            borderColor: '#e74c3c',
+                            backgroundColor: 'rgba(231,76,60,0.1)',
+                            borderWidth: 2,
+                            tension: 0.1,
+                            pointRadius: 2,
+                            pointHoverRadius: 5
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: { mode: 'index', intersect: false }
+                        },
+                        scales: {
+                            y: {
+                                title: { display: true, text: 'Log P(O|λ)', font: { size: 10 } },
+                                grid: { color: '#ecf0f1' }
+                            },
+                            x: {
+                                title: { display: true, text: 'Iteration', font: { size: 10 } },
+                                grid: { display: false }
+                            }
+                        }
+                    }
+                });
+            } else {
+                // Update existing charts
+                charts.likelihood.data.labels = iterations;
+                charts.likelihood.data.datasets[0].data = ll;
+                charts.likelihood.update();
+
+                charts.loglikelihood.data.labels = iterations;
+                charts.loglikelihood.data.datasets[0].data = logll;
+                charts.loglikelihood.update();
+            }
+        }
+
+        function loadDiagram() {
+            const diagramContainer = document.getElementById('diagramContainer');
+            diagramContainer.innerHTML = '<div class="loading-spinner"></div><p>Loading diagram...</p>';
+
+            fetch(`/api/diagram/${sessionId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.diagram) {
+                        diagramContainer.innerHTML = `<img src="${data.diagram}?t=${Date.now()}" alt="FSM Diagram">`;
+                    } else {
+                        diagramContainer.innerHTML = '<div class="waiting-message">Diagram not available</div>';
+                    }
+                })
+                .catch(err => {
+                    console.error('Failed to load diagram:', err);
+                    diagramContainer.innerHTML = '<div class="waiting-message">Error loading diagram</div>';
+                });
+        }
+
+        function pollProgress() {
+            fetch(`/api/progress/${sessionId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.progress && data.progress.length > 0) {
+                        updateUI(data.progress);
+                    }
+                    if (data.complete) {
+                        clearInterval(pollInterval);
+                    }
+                })
+                .catch(err => console.error('Polling failed:', err));
+        }
+
+        // Start polling if sessionId exists
+        if (sessionId) {
+            pollInterval = setInterval(pollProgress, 1000);
+            pollProgress();
+        }
+
+        // Tab switching
+        function showTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.getElementById(tabName).classList.add('active');
+            event.target.classList.add('active');
+
+            // Force chart redraw when switching to plots tab
+            if (tabName === 'plots') {
+                setTimeout(() => {
+                    if (charts.likelihood) {
+                        charts.likelihood.resize();
+                        charts.likelihood.update();
+                    }
+                    if (charts.loglikelihood) {
+                        charts.loglikelihood.resize();
+                        charts.loglikelihood.update();
+                    }
+                    if (charts.parameter) {
+                        charts.parameter.resize();
+                        charts.parameter.update();
+                    }
+                }, 100);
+            }
+        }
+    </script>
+</body>
+</html>

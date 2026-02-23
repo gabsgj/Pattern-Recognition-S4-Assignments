@@ -1,0 +1,1140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HMM — Baum-Welch Visual Trainer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg: #0d0f1a;
+      --surface: #131629;
+      --surface2: #1a1e36;
+      --surface3: #222745;
+      --border: #2e3460;
+      --accent: #6c63ff;
+      --accent2: #a78bfa;
+      --accent3: #38bdf8;
+      --green: #34d399;
+      --orange: #fb923c;
+      --red: #f87171;
+      --text: #e2e8f0;
+      --muted: #7c85ab;
+      --card-radius: 16px;
+      --mono: 'JetBrains Mono', monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Animated background */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 80% 60% at 20% 10%, rgba(108,99,255,.15) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 50% at 80% 90%, rgba(56,189,248,.10) 0%, transparent 60%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .container { position: relative; z-index: 1; max-width: 1400px; margin: 0 auto; padding: 24px 20px; }
+
+    /* Header */
+    header { text-align: center; margin-bottom: 36px; }
+    header h1 {
+      font-size: clamp(1.8rem, 4vw, 2.8rem);
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--accent2) 0%, var(--accent3) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      letter-spacing: -0.5px;
+    }
+    header p { color: var(--muted); margin-top: 8px; font-size: .95rem; }
+
+    /* Badge row */
+    .badge-row { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+    .badge {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 100px;
+      padding: 4px 14px;
+      font-size: .78rem;
+      color: var(--accent2);
+      font-weight: 500;
+    }
+
+    /* Layout grid */
+    .grid-main { display: grid; grid-template-columns: 340px 1fr; gap: 20px; align-items: start; }
+    @media (max-width: 900px) { .grid-main { grid-template-columns: 1fr; } }
+
+    /* Cards */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--card-radius);
+      padding: 20px;
+      position: relative;
+      overflow: hidden;
+    }
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(108,99,255,.5), transparent);
+    }
+    .card-title {
+      font-size: .85rem;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .card-title .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); }
+
+    /* Config panel */
+    label { display: block; font-size: .82rem; color: var(--muted); margin-bottom: 5px; margin-top: 14px; }
+    label:first-of-type { margin-top: 0; }
+    input[type="number"], select, textarea {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      padding: 9px 12px;
+      font-size: .9rem;
+      font-family: var(--mono);
+      outline: none;
+      transition: border-color .2s;
+    }
+    input[type="number"]:focus, select:focus, textarea:focus { border-color: var(--accent); }
+    textarea { resize: vertical; min-height: 70px; line-height: 1.5; }
+
+    /* Buttons */
+    .btn-row { display: flex; gap: 10px; margin-top: 18px; flex-wrap: wrap; }
+    button {
+      flex: 1;
+      cursor: pointer;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 16px;
+      font-size: .88rem;
+      font-weight: 600;
+      transition: all .2s;
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+    }
+    .btn-primary { background: linear-gradient(135deg, var(--accent), #4f46e5); color: #fff; }
+    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(108,99,255,.4); }
+    .btn-primary:active { transform: translateY(0); }
+    .btn-secondary { background: var(--surface2); border: 1px solid var(--border); color: var(--text); }
+    .btn-secondary:hover { background: var(--surface3); }
+    .btn-sm { flex: unset; padding: 6px 12px; font-size: .8rem; }
+    button:disabled { opacity: .45; cursor: not-allowed; transform: none !important; }
+
+    /* Right-side panels */
+    .right-col { display: flex; flex-direction: column; gap: 20px; }
+
+    /* State diagram canvas */
+    #hmm-canvas {
+      width: 100%; height: 300px;
+      background: var(--surface2);
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      display: block;
+    }
+
+    /* Matrix grid */
+    .matrix-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+    .matrix-table { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: .82rem; }
+    .matrix-table th {
+      background: var(--surface3);
+      color: var(--accent2);
+      padding: 6px 10px;
+      text-align: center;
+      font-weight: 600;
+    }
+    .matrix-table td {
+      padding: 6px 10px;
+      text-align: center;
+      border-top: 1px solid var(--border);
+      transition: background .3s;
+    }
+    .matrix-table tr:hover td { background: var(--surface3); }
+
+    /* Cell heat coloring applied via JS */
+    .heat-high { background: rgba(108,99,255,.25) !important; color: var(--accent2); }
+    .heat-mid  { background: rgba(56,189,248,.12) !important; }
+    .heat-low  { }
+
+    /* Stats row */
+    .stats-row { display: flex; gap: 12px; flex-wrap: wrap; }
+    .stat-chip {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 16px;
+      flex: 1;
+      min-width: 130px;
+    }
+    .stat-chip .label { font-size: .75rem; color: var(--muted); }
+    .stat-chip .value { font-size: 1.35rem; font-weight: 700; font-family: var(--mono); margin-top: 2px; }
+    .stat-chip .value.green  { color: var(--green); }
+    .stat-chip .value.purple { color: var(--accent2); }
+    .stat-chip .value.blue   { color: var(--accent3); }
+    .stat-chip .value.orange { color: var(--orange); }
+
+    /* Log */
+    #log-box {
+      max-height: 180px;
+      overflow-y: auto;
+      background: #0a0c15;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      padding: 12px;
+      font-family: var(--mono);
+      font-size: .78rem;
+      line-height: 1.7;
+      color: var(--muted);
+    }
+    #log-box .log-ok   { color: var(--green); }
+    #log-box .log-warn { color: var(--orange); }
+    #log-box .log-info { color: var(--accent3); }
+    #log-box .log-head { color: var(--accent2); font-weight: 600; }
+
+    /* Chart */
+    .chart-wrap { position: relative; height: 220px; }
+
+    /* Forward-Backward table */
+    .fb-wrap { overflow-x: auto; }
+    .fb-table { border-collapse: collapse; font-family: var(--mono); font-size: .78rem; white-space: nowrap; }
+    .fb-table th { background: var(--surface3); color: var(--accent2); padding: 5px 12px; }
+    .fb-table td { padding: 5px 12px; border-top: 1px solid var(--border); text-align: center; }
+    .fb-alpha { color: var(--green); }
+    .fb-beta  { color: var(--orange); }
+    .fb-gamma { color: var(--accent3); }
+
+    /* Animation keyframes */
+    @keyframes fadeInUp { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+    .fade-in { animation: fadeInUp .4s ease forwards; }
+
+    /* Progress bar */
+    .progress-bar-wrap { height: 4px; background: var(--surface3); border-radius: 4px; overflow: hidden; margin-bottom: 16px; }
+    .progress-bar { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent3)); border-radius: 4px; transition: width .4s ease; }
+
+    /* Tabs */
+    .tab-row { display: flex; gap: 4px; margin-bottom: 16px; border-bottom: 1px solid var(--border); padding-bottom: 0; }
+    .tab-btn {
+      background: none;
+      border: none;
+      color: var(--muted);
+      padding: 8px 14px;
+      border-radius: 8px 8px 0 0;
+      font-size: .83rem;
+      font-weight: 500;
+      flex: unset;
+      transition: all .2s;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+    }
+    .tab-btn.active { color: var(--accent2); border-bottom-color: var(--accent); background: var(--surface2); }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; animation: fadeInUp .3s ease; }
+
+    /* Sequence display */
+    .seq-tokens { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+    .token {
+      background: var(--surface3);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 3px 10px;
+      font-family: var(--mono);
+      font-size: .8rem;
+      color: var(--text);
+      transition: background .3s;
+    }
+    .token.highlight { background: rgba(108,99,255,.3); border-color: var(--accent); color: var(--accent2); }
+
+    /* Tooltip */
+    .info-tip { display: inline-block; cursor: help; color: var(--muted); font-size: .78rem; border-bottom: 1px dashed var(--border); }
+
+    /* Mobile tweaks */
+    @media (max-width: 600px) {
+      .btn-row { flex-direction: column; }
+      .stats-row { flex-direction: column; }
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <!-- Header -->
+  <header>
+    <h1>🎲 Hidden Markov Model — Baum-Welch Trainer</h1>
+    <p>Interactive visual implementation of the Expectation-Maximisation algorithm for HMMs</p>
+    <div class="badge-row">
+      <span class="badge">Forward-Backward Algorithm</span>
+      <span class="badge">E-Step · M-Step</span>
+      <span class="badge">Log-Likelihood Convergence</span>
+      <span class="badge">State Diagram</span>
+      <span class="badge">Matrix Heatmaps</span>
+    </div>
+  </header>
+
+  <div class="grid-main">
+
+    <!-- LEFT: Config Panel -->
+    <aside>
+      <div class="card">
+        <div class="card-title"><span class="dot"></span>Model Configuration</div>
+
+        <label>Number of Hidden States (N)</label>
+        <input type="number" id="cfg-n" value="2" min="2" max="6" />
+
+        <label>Number of Observations (M)</label>
+        <input type="number" id="cfg-m" value="3" min="2" max="8" />
+
+        <label>Observation Sequence</label>
+        <textarea id="cfg-obs" placeholder="e.g. 0 1 2 0 1 1 2 0">0 1 2 0 1 1 2 0 2 1</textarea>
+        <small style="color:var(--muted);font-size:.75rem">Space-separated indices (0 to M-1)</small>
+
+        <label>Max Iterations</label>
+        <input type="number" id="cfg-maxiter" value="50" min="1" max="500" />
+
+        <label>Convergence Threshold (ε)</label>
+        <input type="number" id="cfg-tol" value="1e-6" step="any" />
+
+        <label>Preset Example</label>
+        <select id="cfg-preset">
+          <option value="weather">🌦 Weather (2 states, 3 obs)</option>
+          <option value="casino">🎰 Dishonest Casino (2 states, 6 obs)</option>
+          <option value="dna">🧬 DNA CpG Islands (2 states, 4 obs)</option>
+          <option value="custom">✏️ Custom (random init)</option>
+        </select>
+
+        <label>Animation Speed</label>
+        <select id="cfg-speed">
+          <option value="0">Instant</option>
+          <option value="300">Fast</option>
+          <option value="700" selected>Normal</option>
+          <option value="1400">Slow</option>
+        </select>
+
+        <div class="btn-row" style="margin-top:20px">
+          <button class="btn-primary" id="btn-run">▶ Run Baum-Welch</button>
+          <button class="btn-secondary" id="btn-step">Step</button>
+        </div>
+        <div class="btn-row">
+          <button class="btn-secondary btn-sm" id="btn-reset">⟳ Reset</button>
+          <button class="btn-secondary btn-sm" id="btn-randomize">🎲 Randomize</button>
+        </div>
+      </div>
+
+      <!-- Theory box -->
+      <div class="card" style="margin-top:16px">
+        <div class="card-title"><span class="dot" style="background:var(--accent3)"></span>HMM Components</div>
+        <div style="font-size:.82rem;color:var(--muted);line-height:1.7">
+          <b style="color:var(--text)">λ = (π, A, B)</b><br>
+          <span class="info-tip">π</span> — Initial state distribution<br>
+          <span class="info-tip">A</span> — Transition probability matrix<br>
+          <span class="info-tip">B</span> — Emission probability matrix<br><br>
+          <b style="color:var(--text)">Baum-Welch (EM for HMMs)</b><br>
+          <b>E-step:</b> Compute α (forward), β (backward), γ, ξ<br>
+          <b>M-step:</b> Re-estimate π, A, B to maximise P(O|λ)
+        </div>
+      </div>
+    </aside>
+
+    <!-- RIGHT: Visualization -->
+    <div class="right-col">
+
+      <!-- Stats row -->
+      <div class="stats-row fade-in">
+        <div class="stat-chip">
+          <div class="label">Iteration</div>
+          <div class="value purple" id="stat-iter">—</div>
+        </div>
+        <div class="stat-chip">
+          <div class="label">Log-Likelihood</div>
+          <div class="value green" id="stat-ll">—</div>
+        </div>
+        <div class="stat-chip">
+          <div class="label">Δ Log-Likelihood</div>
+          <div class="value blue" id="stat-delta">—</div>
+        </div>
+        <div class="stat-chip">
+          <div class="label">Status</div>
+          <div class="value orange" id="stat-status">Idle</div>
+        </div>
+      </div>
+
+      <!-- Progress bar -->
+      <div class="progress-bar-wrap">
+        <div class="progress-bar" id="progress-bar" style="width:0%"></div>
+      </div>
+
+      <!-- State Diagram -->
+      <div class="card fade-in">
+        <div class="card-title"><span class="dot" style="background:var(--green)"></span>HMM State Diagram</div>
+        <canvas id="hmm-canvas"></canvas>
+      </div>
+
+      <!-- Tabs: Matrices / Forward-Backward / Log / Chart -->
+      <div class="card fade-in">
+        <div class="tab-row">
+          <button class="tab-btn active" data-tab="matrices">Parameter Matrices</button>
+          <button class="tab-btn" data-tab="fb">Forward-Backward</button>
+          <button class="tab-btn" data-tab="chart">Convergence</button>
+          <button class="tab-btn" data-tab="log">Log</button>
+        </div>
+
+        <!-- Matrices Tab -->
+        <div class="tab-panel active" id="tab-matrices">
+          <div class="matrix-grid">
+            <div>
+              <div class="card-title" style="font-size:.75rem"><span class="dot" style="background:var(--orange)"></span>π — Initial Distribution</div>
+              <div id="matrix-pi"></div>
+            </div>
+            <div>
+              <div class="card-title" style="font-size:.75rem"><span class="dot" style="background:var(--accent2)"></span>A — Transition Matrix</div>
+              <div id="matrix-a"></div>
+            </div>
+            <div>
+              <div class="card-title" style="font-size:.75rem"><span class="dot" style="background:var(--accent3)"></span>B — Emission Matrix</div>
+              <div id="matrix-b"></div>
+            </div>
+          </div>
+
+          <div style="margin-top:16px">
+            <div class="card-title" style="font-size:.75rem"><span class="dot" style="background:var(--green)"></span>Observation Sequence</div>
+            <div class="seq-tokens" id="seq-display"></div>
+          </div>
+        </div>
+
+        <!-- Forward-Backward Tab -->
+        <div class="tab-panel" id="tab-fb">
+          <div class="fb-wrap" id="fb-table-wrap">
+            <p style="color:var(--muted);font-size:.85rem">Run the algorithm to see Forward (α) and Backward (β) probabilities, and the posterior γ.</p>
+          </div>
+        </div>
+
+        <!-- Chart Tab -->
+        <div class="tab-panel" id="tab-chart">
+          <div class="chart-wrap">
+            <canvas id="ll-chart"></canvas>
+          </div>
+        </div>
+
+        <!-- Log Tab -->
+        <div class="tab-panel" id="tab-log">
+          <div id="log-box"><span class="log-info">Ready. Configure and press Run.</span></div>
+        </div>
+      </div>
+
+    </div><!-- end right-col -->
+  </div><!-- end grid-main -->
+</div><!-- container -->
+
+<script>
+// ─────────────────────────────────────────────────
+// HMM Core: Forward-Backward + Baum-Welch
+// ─────────────────────────────────────────────────
+
+function matMul(A, B) {
+  const rows = A.length, cols = B[0].length, inner = B.length;
+  return Array.from({length: rows}, (_, i) =>
+    Array.from({length: cols}, (_, j) =>
+      A[i].reduce((s, _, k) => s + A[i][k] * B[k][j], 0)));
+}
+
+function normalizeRow(arr) {
+  const s = arr.reduce((a, b) => a + b, 0) || 1;
+  return arr.map(v => v / s);
+}
+
+function randRow(n) {
+  const r = Array.from({length: n}, () => Math.random() + 0.1);
+  return normalizeRow(r);
+}
+
+function initHMM(N, M) {
+  return {
+    pi: normalizeRow(Array.from({length: N}, () => Math.random() + 0.1)),
+    A: Array.from({length: N}, () => randRow(N)),
+    B: Array.from({length: N}, () => randRow(M)),
+    N, M
+  };
+}
+
+// Forward algorithm (scaled)
+function forward(hmm, obs) {
+  const {pi, A, B, N} = hmm, T = obs.length;
+  const alpha = [], scale = [];
+
+  let a0 = pi.map((p, i) => p * B[i][obs[0]]);
+  let c0 = a0.reduce((s, v) => s + v, 0) || 1e-300;
+  scale.push(c0);
+  alpha.push(a0.map(v => v / c0));
+
+  for (let t = 1; t < T; t++) {
+    let at = Array.from({length: N}, (_, j) => {
+      const sum = alpha[t-1].reduce((s, ai, i) => s + ai * A[i][j], 0);
+      return sum * B[j][obs[t]];
+    });
+    let ct = at.reduce((s, v) => s + v, 0) || 1e-300;
+    scale.push(ct);
+    alpha.push(at.map(v => v / ct));
+  }
+  return {alpha, scale};
+}
+
+// Backward algorithm (scaled)
+function backward(hmm, obs, scale) {
+  const {A, B, N} = hmm, T = obs.length;
+  const beta = Array(T);
+  beta[T-1] = Array(N).fill(1 / (scale[T-1] || 1));
+
+  for (let t = T-2; t >= 0; t--) {
+    beta[t] = Array.from({length: N}, (_, i) =>
+      A[i].reduce((s, aij, j) => s + aij * B[j][obs[t+1]] * beta[t+1][j], 0) / (scale[t] || 1)
+    );
+  }
+  return beta;
+}
+
+// Compute γ and ξ
+function computeGammaXi(hmm, obs, alpha, beta) {
+  const {A, B, N} = hmm, T = obs.length;
+
+  // gamma[t][i] = P(q_t=i | O, λ)
+  const gamma = alpha.map((at, t) => {
+    const row = at.map((a, i) => a * beta[t][i]);
+    return normalizeRow(row);
+  });
+
+  // xi[t][i][j] = P(q_t=i, q_{t+1}=j | O, λ)
+  const xi = [];
+  for (let t = 0; t < T-1; t++) {
+    const block = Array.from({length: N}, (_, i) =>
+      Array.from({length: N}, (_, j) =>
+        alpha[t][i] * A[i][j] * B[j][obs[t+1]] * beta[t+1][j]
+      )
+    );
+    // normalize block
+    let s = block.reduce((r, row) => r + row.reduce((a, b) => a + b, 0), 0) || 1;
+    xi.push(block.map(row => row.map(v => v / s)));
+  }
+  return {gamma, xi};
+}
+
+// Log-likelihood from scales
+function logLikelihood(scale) {
+  return scale.reduce((s, c) => s + Math.log(c || 1e-300), 0);
+}
+
+// M-step: re-estimate π, A, B
+function mStep(hmm, obs, gamma, xi) {
+  const {N, M} = hmm, T = obs.length;
+
+  const pi = gamma[0].slice();
+
+  const A = Array.from({length: N}, (_, i) => {
+    const denom = gamma.slice(0, T-1).reduce((s, g) => s + g[i], 0) || 1e-300;
+    return Array.from({length: N}, (_, j) =>
+      xi.reduce((s, xit) => s + xit[i][j], 0) / denom
+    );
+  });
+
+  const B = Array.from({length: N}, (_, i) => {
+    const denom = gamma.reduce((s, g) => s + g[i], 0) || 1e-300;
+    return Array.from({length: M}, (_, k) =>
+      gamma.reduce((s, g, t) => s + (obs[t] === k ? g[i] : 0), 0) / denom
+    );
+  });
+
+  return {pi: normalizeRow(pi), A: A.map(r => normalizeRow(r)), B: B.map(r => normalizeRow(r)), N, M};
+}
+
+// Full Baum-Welch, returns array of {hmm, ll} per iteration
+function baumWelch(hmm0, obs, maxIter, tol) {
+  let hmm = JSON.parse(JSON.stringify(hmm0));
+  const history = [];
+  let prevLL = -Infinity;
+
+  for (let iter = 0; iter < maxIter; iter++) {
+    const {alpha, scale} = forward(hmm, obs);
+    const beta = backward(hmm, obs, scale);
+    const ll   = logLikelihood(scale);
+    const {gamma, xi} = computeGammaXi(hmm, obs, alpha, beta);
+
+    history.push({hmm: JSON.parse(JSON.stringify(hmm)), ll, alpha, beta, gamma, iter});
+
+    const delta = Math.abs(ll - prevLL);
+    if (iter > 0 && delta < tol) {
+      history[history.length-1].converged = true;
+      break;
+    }
+    prevLL = ll;
+    hmm = mStep(hmm, obs, gamma, xi);
+  }
+  return history;
+}
+
+// ─────────────────────────────────────────────────
+// Presets
+// ─────────────────────────────────────────────────
+const PRESETS = {
+  weather: {
+    N:2, M:3,
+    obs: [0,1,2,0,1,1,2,0,2,1,0,0,1,2,1,0,1,2,2,0],
+    obsNames: ['☀️ Sun','🌧 Rain','⛅ Cloud'],
+    stateNames: ['Summer','Winter']
+  },
+  casino: {
+    N:2, M:6,
+    obs: [1,5,3,2,4,6,6,6,5,4,6,6,6,1,3,2,1,4,2,3,6,6,5,6,2,6].map(v=>v-1),
+    obsNames:['⚀','⚁','⚂','⚃','⚄','⚅'],
+    stateNames:['Fair Die','Loaded Die']
+  },
+  dna: {
+    N:2, M:4,
+    obs:[0,3,2,1,0,0,3,2,1,1,2,3,2,1,0,0,3,2,1,1,2,3,0,1],
+    obsNames:['A','C','G','T'],
+    stateNames:['CpG Island','Non-CpG']
+  },
+  custom: null
+};
+
+// ─────────────────────────────────────────────────
+// State Diagram Renderer
+// ─────────────────────────────────────────────────
+let animFrame = null;
+
+function drawStateDiagram(canvas, hmm, stateNames, highlightState=-1) {
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+
+  const N = hmm.N;
+  const R = 38; // state circle radius
+  const cx = W / 2, cy = H / 2;
+  const rad = Math.min(W, H) / 2 - R - 30;
+
+  // State positions on circle
+  const pos = Array.from({length: N}, (_, i) => {
+    const angle = (2 * Math.PI * i / N) - Math.PI / 2;
+    return { x: cx + rad * Math.cos(angle), y: cy + rad * Math.sin(angle) };
+  });
+
+  // Draw transition arrows
+  for (let i = 0; i < N; i++) {
+    for (let j = 0; j < N; j++) {
+      const p = hmm.A[i][j];
+      if (p < 0.01) continue;
+      drawArrow(ctx, pos[i], pos[j], i === j, p, i, j, N);
+    }
+  }
+
+  // Emission bars
+  for (let i = 0; i < N; i++) {
+    drawEmissionBars(ctx, pos[i], hmm.B[i], hmm.M, R);
+  }
+
+  // Draw state circles
+  for (let i = 0; i < N; i++) {
+    const {x, y} = pos[i];
+    const isHighlight = i === highlightState;
+
+    // Glow
+    if (isHighlight) {
+      ctx.save();
+      ctx.shadowColor = '#6c63ff';
+      ctx.shadowBlur = 24;
+    }
+
+    // Circle
+    const grad = ctx.createRadialGradient(x-R*.3, y-R*.3, 2, x, y, R);
+    grad.addColorStop(0, isHighlight ? '#8b83ff' : '#2e3460');
+    grad.addColorStop(1, isHighlight ? '#4f46e5' : '#1a1e36');
+    ctx.beginPath();
+    ctx.arc(x, y, R, 0, 2*Math.PI);
+    ctx.fillStyle = grad;
+    ctx.fill();
+    ctx.strokeStyle = isHighlight ? '#6c63ff' : '#4a5280';
+    ctx.lineWidth = isHighlight ? 2.5 : 1.5;
+    ctx.stroke();
+
+    if (isHighlight) ctx.restore();
+
+    // Label
+    const name = stateNames ? stateNames[i] : `S${i}`;
+    ctx.fillStyle = '#e2e8f0';
+    ctx.font = `bold 12px Inter, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(name.substring(0, 8), x, y - 6);
+
+    // π value
+    ctx.fillStyle = '#a78bfa';
+    ctx.font = `10px JetBrains Mono, monospace`;
+    ctx.fillText(`π=${hmm.pi[i].toFixed(2)}`, x, y + 8);
+  }
+}
+
+function drawArrow(ctx, from, to, isSelf, weight, i, j, N) {
+  const alpha = Math.min(0.9, 0.2 + weight * 0.8);
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.strokeStyle = `hsl(${220 + i * 40}, 60%, 65%)`;
+  ctx.lineWidth = 1 + weight * 2;
+  ctx.setLineDash([]);
+
+  if (isSelf) {
+    // Self-loop
+    const {x, y} = from;
+    const lx = x, ly = y - 55;
+    ctx.beginPath();
+    ctx.arc(lx, ly, 20, 0.2, Math.PI * 2 - 0.2);
+    ctx.stroke();
+    // Arrow head
+    ctx.fillStyle = ctx.strokeStyle;
+    ctx.beginPath();
+    ctx.moveTo(x + 15, y - 42);
+    ctx.lineTo(x + 8, y - 32);
+    ctx.lineTo(x + 22, y - 34);
+    ctx.fill();
+
+    // Weight
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '9px JetBrains Mono';
+    ctx.textAlign = 'center';
+    ctx.fillText(weight.toFixed(2), lx, ly - 22);
+  } else {
+    const dx = to.x - from.x, dy = to.y - from.y;
+    const dist = Math.sqrt(dx*dx + dy*dy);
+    const ux = dx/dist, uy = dy/dist;
+    const R = 38;
+    const startX = from.x + ux * R, startY = from.y + uy * R;
+    const endX   = to.x   - ux * R, endY   = to.y   - uy * R;
+
+    // Slight curve
+    const cx = (startX + endX) / 2 - uy * 20, cy2 = (startY + endY) / 2 + ux * 20;
+    ctx.beginPath();
+    ctx.moveTo(startX, startY);
+    ctx.quadraticCurveTo(cx, cy2, endX, endY);
+    ctx.stroke();
+
+    // Arrow head
+    const angle = Math.atan2(endY - cy2, endX - cx);
+    ctx.fillStyle = ctx.strokeStyle;
+    ctx.globalAlpha = alpha;
+    ctx.beginPath();
+    ctx.moveTo(endX, endY);
+    ctx.lineTo(endX - 10*Math.cos(angle-0.35), endY - 10*Math.sin(angle-0.35));
+    ctx.lineTo(endX - 10*Math.cos(angle+0.35), endY - 10*Math.sin(angle+0.35));
+    ctx.closePath();
+    ctx.fill();
+
+    // Weight label
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '9px JetBrains Mono';
+    ctx.textAlign = 'center';
+    ctx.fillText(weight.toFixed(2), cx, cy2);
+  }
+  ctx.restore();
+}
+
+function drawEmissionBars(ctx, pos, B, M, R) {
+  const {x, y} = pos;
+  const bW = 5, gap = 3, totalW = (bW + gap) * M - gap;
+  const startX = x - totalW / 2;
+  const maxH = 18;
+  const barY = y + R + 5;
+
+  for (let k = 0; k < M; k++) {
+    const bH = Math.max(2, B[k] * maxH);
+    const bx = startX + k * (bW + gap);
+    const hue = 180 + k * (140 / M);
+    ctx.fillStyle = `hsla(${hue}, 70%, 60%, 0.85)`;
+    ctx.beginPath();
+    ctx.roundRect(bx, barY + maxH - bH, bW, bH, 2);
+    ctx.fill();
+  }
+}
+
+// ─────────────────────────────────────────────────
+// Matrix Table Renderers
+// ─────────────────────────────────────────────────
+function renderPiTable(container, pi, stateNames) {
+  const html = `<table class="matrix-table">
+    <tr><th>State</th><th>π(i)</th></tr>
+    ${pi.map((v, i) => {
+      const cls = v > 0.5 ? 'heat-high' : v > 0.25 ? 'heat-mid' : '';
+      return `<tr><td>${stateNames ? stateNames[i] : 'S' + i}</td><td class="${cls}">${v.toFixed(4)}</td></tr>`;
+    }).join('')}
+  </table>`;
+  container.innerHTML = html;
+}
+
+function renderATable(container, A, stateNames) {
+  const N = A.length;
+  const headers = (stateNames || Array.from({length:N},(_,i)=>'S'+i)).map(n => `<th>${n}</th>`).join('');
+  const rows = A.map((row, i) => {
+    const name = stateNames ? stateNames[i] : 'S' + i;
+    const cells = row.map(v => {
+      const cls = v > 0.5 ? 'heat-high' : v > 0.25 ? 'heat-mid' : '';
+      return `<td class="${cls}">${v.toFixed(4)}</td>`;
+    }).join('');
+    return `<tr><td><b>${name}</b></td>${cells}</tr>`;
+  }).join('');
+  container.innerHTML = `<table class="matrix-table"><tr><th>→</th>${headers}</tr>${rows}</table>`;
+}
+
+function renderBTable(container, B, stateNames, obsNames) {
+  const N = B.length, M = B[0].length;
+  const obsH = (obsNames || Array.from({length:M},(_,k)=>'O'+k)).map(n=>`<th>${n}</th>`).join('');
+  const rows = B.map((row, i) => {
+    const name = stateNames ? stateNames[i] : 'S' + i;
+    const cells = row.map(v => {
+      const cls = v > 0.5 ? 'heat-high' : v > 0.25 ? 'heat-mid' : '';
+      return `<td class="${cls}">${v.toFixed(4)}</td>`;
+    }).join('');
+    return `<tr><td><b>${name}</b></td>${cells}</tr>`;
+  }).join('');
+  container.innerHTML = `<table class="matrix-table"><tr><th>Emit</th>${obsH}</tr>${rows}</table>`;
+}
+
+// ─────────────────────────────────────────────────
+// Forward-Backward Table Renderer
+// ─────────────────────────────────────────────────
+function renderFBTable(container, alpha, beta, gamma, obs, obsNames) {
+  const T = obs.length, N = alpha[0].length;
+  const stateHeaders = Array.from({length: N}, (_, i) =>
+    `<th class="fb-alpha">α[${i}]</th><th class="fb-beta">β[${i}]</th><th class="fb-gamma">γ[${i}]</th>`
+  ).join('');
+
+  const rows = obs.map((o, t) => {
+    const obLabel = obsNames ? obsNames[o] : `O${o}`;
+    const cells = Array.from({length: N}, (_, i) =>
+      `<td class="fb-alpha">${alpha[t][i].toExponential(3)}</td>
+       <td class="fb-beta">${beta[t][i].toExponential(3)}</td>
+       <td class="fb-gamma">${gamma[t][i].toFixed(4)}</td>`
+    ).join('');
+    return `<tr><td><b>t=${t}</b></td><td>${obLabel}</td>${cells}</tr>`;
+  }).join('');
+
+  container.innerHTML = `<table class="fb-table">
+    <tr><th>t</th><th>Obs</th>${stateHeaders}</tr>
+    ${rows}
+  </table>`;
+}
+
+// ─────────────────────────────────────────────────
+// Chart
+// ─────────────────────────────────────────────────
+let llChart = null;
+
+function initChart() {
+  const ctx = document.getElementById('ll-chart').getContext('2d');
+  if (llChart) llChart.destroy();
+  llChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: [],
+      datasets: [{
+        label: 'Log-Likelihood',
+        data: [],
+        borderColor: '#6c63ff',
+        backgroundColor: 'rgba(108,99,255,0.15)',
+        fill: true,
+        tension: 0.4,
+        pointRadius: 3,
+        pointBackgroundColor: '#a78bfa'
+      }]
+    },
+    options: {
+      animation: { duration: 300 },
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { labels: { color: '#94a3b8' } }
+      },
+      scales: {
+        x: { ticks: { color: '#64748b' }, grid: { color: '#1e2540' }, title: { display: true, text: 'Iteration', color: '#7c85ab' } },
+        y: { ticks: { color: '#64748b' }, grid: { color: '#1e2540' }, title: { display: true, text: 'Log P(O | λ)', color: '#7c85ab' } }
+      }
+    }
+  });
+  return llChart;
+}
+
+function updateChart(chart, history) {
+  chart.data.labels = history.map(h => h.iter + 1);
+  chart.data.datasets[0].data = history.map(h => h.ll);
+  chart.update();
+}
+
+// ─────────────────────────────────────────────────
+// Logger
+// ─────────────────────────────────────────────────
+const logBox = document.getElementById('log-box');
+function log(msg, cls='') {
+  const span = document.createElement('span');
+  if (cls) span.className = cls;
+  span.textContent = msg;
+  logBox.appendChild(span);
+  logBox.appendChild(document.createElement('br'));
+  logBox.scrollTop = logBox.scrollHeight;
+}
+function clearLog() { logBox.innerHTML = ''; }
+
+// ─────────────────────────────────────────────────
+// App State
+// ─────────────────────────────────────────────────
+let appState = {
+  hmm: null, obs: [], history: [], currentStep: 0,
+  stateNames: null, obsNames: null, running: false
+};
+
+function getConfig() {
+  const N = parseInt(document.getElementById('cfg-n').value);
+  const M = parseInt(document.getElementById('cfg-m').value);
+  const maxIter = parseInt(document.getElementById('cfg-maxiter').value);
+  const tol = parseFloat(document.getElementById('cfg-tol').value);
+  const obsRaw = document.getElementById('cfg-obs').value.trim().split(/\s+/).map(Number);
+  return {N, M, maxIter, tol, obs: obsRaw};
+}
+
+function loadPreset(key) {
+  const p = PRESETS[key];
+  if (!p) return;
+  document.getElementById('cfg-n').value = p.N;
+  document.getElementById('cfg-m').value = p.M;
+  document.getElementById('cfg-obs').value = p.obs.join(' ');
+  appState.stateNames = p.stateNames;
+  appState.obsNames   = p.obsNames;
+}
+
+function renderSequence(obs, obsNames, highlightT=-1) {
+  const el = document.getElementById('seq-display');
+  el.innerHTML = obs.map((o, t) => {
+    const label = obsNames ? obsNames[o] : `O${o}`;
+    const cls = t === highlightT ? 'token highlight' : 'token';
+    return `<span class="${cls}" title="t=${t}">${label}</span>`;
+  }).join('');
+}
+
+function updateStats(iter, ll, delta, status) {
+  document.getElementById('stat-iter').textContent   = iter === null ? '—' : iter + 1;
+  document.getElementById('stat-ll').textContent     = ll    === null ? '—' : ll.toFixed(3);
+  document.getElementById('stat-delta').textContent  = delta === null ? '—' : delta.toExponential(2);
+  document.getElementById('stat-status').textContent = status;
+}
+
+function updateProgress(cur, max) {
+  document.getElementById('progress-bar').style.width = (cur / max * 100) + '%';
+}
+
+// ─────────────────────────────────────────────────
+// Canvas resize helper
+// ─────────────────────────────────────────────────
+function resizeCanvas() {
+  const canvas = document.getElementById('hmm-canvas');
+  const w = canvas.parentElement.offsetWidth - 40;
+  canvas.width  = w;
+  canvas.height = 300;
+}
+
+// ─────────────────────────────────────────────────
+// Run full Baum-Welch with animated playback
+// ─────────────────────────────────────────────────
+async function runBaumWelch() {
+  const {N, M, maxIter, tol, obs} = getConfig();
+
+  // Validate
+  if (obs.some(o => o < 0 || o >= M || isNaN(o))) {
+    alert('Observation indices must be in range [0, M-1]. Check your sequence!');
+    return;
+  }
+
+  clearLog();
+  log(`Starting Baum-Welch  N=${N}  M=${M}  T=${obs.length}  maxIter=${maxIter}`, 'log-head');
+
+  const preset = document.getElementById('cfg-preset').value;
+  if (PRESETS[preset]) loadPreset(preset);
+  else { appState.stateNames = null; appState.obsNames = null; }
+
+  const hmm0 = initHMM(N, M);
+  appState.hmm = hmm0;
+  appState.obs = obs;
+  appState.history = baumWelch(hmm0, obs, maxIter, tol);
+  appState.currentStep = 0;
+
+  log(`Computed ${appState.history.length} iterations`, 'log-info');
+
+  const chart = initChart();
+  updateChart(chart, appState.history);
+
+  const speed = parseInt(document.getElementById('cfg-speed').value);
+  document.getElementById('btn-run').disabled = true;
+  document.getElementById('btn-step').disabled = true;
+  appState.running = true;
+
+  renderSequence(obs, appState.obsNames);
+
+  for (let i = 0; i < appState.history.length; i++) {
+    if (!appState.running) break;
+    appState.currentStep = i;
+    await animateStep(i);
+    if (speed > 0) await sleep(speed);
+    updateProgress(i + 1, appState.history.length);
+  }
+
+  const last = appState.history[appState.history.length - 1];
+  updateStats(last.iter, last.ll, 0, last.converged ? '✅ Converged' : '⏹ Stopped');
+  log(`Final LL: ${last.ll.toFixed(4)}`, 'log-ok');
+  if (last.converged) log('Converged!', 'log-ok');
+  else log(`Stopped at max iterations (${appState.history.length})`, 'log-warn');
+
+  document.getElementById('btn-run').disabled = false;
+  document.getElementById('btn-step').disabled = false;
+  appState.running = false;
+}
+
+async function animateStep(i) {
+  const h = appState.history[i];
+  const {hmm, ll, alpha, beta, gamma} = h;
+  const prev = i > 0 ? appState.history[i-1].ll : ll;
+  const delta = Math.abs(ll - prev);
+
+  updateStats(h.iter, ll, delta, `Iter ${i+1}`);
+  log(`[${i+1}] LL = ${ll.toFixed(4)}  Δ = ${delta.toExponential(2)}`, i === 0 ? 'log-info' : (delta < 1e-4 ? 'log-ok' : ''));
+
+  resizeCanvas();
+  const canvas = document.getElementById('hmm-canvas');
+  drawStateDiagram(canvas, hmm, appState.stateNames);
+
+  renderPiTable(document.getElementById('matrix-pi'), hmm.pi, appState.stateNames);
+  renderATable(document.getElementById('matrix-a'), hmm.A, appState.stateNames);
+  renderBTable(document.getElementById('matrix-b'), hmm.B, appState.stateNames, appState.obsNames);
+  renderFBTable(document.getElementById('fb-table-wrap'), alpha, beta, gamma, appState.obs, appState.obsNames);
+
+  if (llChart) {
+    llChart.data.labels = appState.history.slice(0, i+1).map(h => h.iter+1);
+    llChart.data.datasets[0].data = appState.history.slice(0, i+1).map(h => h.ll);
+    llChart.update('none');
+  }
+}
+
+function stepOnce() {
+  if (!appState.history.length) { alert('Press Run first.'); return; }
+  const i = Math.min(appState.currentStep + 1, appState.history.length - 1);
+  appState.currentStep = i;
+  animateStep(i);
+  updateProgress(i + 1, appState.history.length);
+}
+
+function resetApp() {
+  appState = { hmm: null, obs: [], history: [], currentStep: 0, stateNames: null, obsNames: null, running: false };
+  clearLog();
+  log('Reset. Configure and press Run.', 'log-info');
+  updateStats(null, null, null, 'Idle');
+  document.getElementById('progress-bar').style.width = '0%';
+  document.getElementById('matrix-pi').innerHTML = '';
+  document.getElementById('matrix-a').innerHTML  = '';
+  document.getElementById('matrix-b').innerHTML  = '';
+  document.getElementById('fb-table-wrap').innerHTML = '<p style="color:var(--muted);font-size:.85rem">Run the algorithm to see Forward (α) and Backward (β) probabilities, and the posterior γ.</p>';
+  document.getElementById('seq-display').innerHTML = '';
+  resizeCanvas();
+  const canvas = document.getElementById('hmm-canvas');
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  initChart();
+  document.getElementById('btn-run').disabled = false;
+  document.getElementById('btn-step').disabled = false;
+}
+
+function randomizeParams() {
+  const {N, M} = getConfig();
+  const hmm = initHMM(N, M);
+  resizeCanvas();
+  drawStateDiagram(document.getElementById('hmm-canvas'), hmm, appState.stateNames);
+  renderPiTable(document.getElementById('matrix-pi'), hmm.pi, appState.stateNames);
+  renderATable(document.getElementById('matrix-a'), hmm.A, appState.stateNames);
+  renderBTable(document.getElementById('matrix-b'), hmm.B, appState.stateNames, appState.obsNames);
+  log('Randomized initial parameters.', 'log-info');
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// ─────────────────────────────────────────────────
+// Tabs
+// ─────────────────────────────────────────────────
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+  });
+});
+
+// ─────────────────────────────────────────────────
+// Event Listeners
+// ─────────────────────────────────────────────────
+document.getElementById('btn-run').addEventListener('click', runBaumWelch);
+document.getElementById('btn-step').addEventListener('click', stepOnce);
+document.getElementById('btn-reset').addEventListener('click', resetApp);
+document.getElementById('btn-randomize').addEventListener('click', randomizeParams);
+
+document.getElementById('cfg-preset').addEventListener('change', e => {
+  const key = e.target.value;
+  if (PRESETS[key]) loadPreset(key);
+});
+
+// ─────────────────────────────────────────────────
+// Init
+// ─────────────────────────────────────────────────
+window.addEventListener('resize', () => {
+  if (appState.hmm) {
+    resizeCanvas();
+    drawStateDiagram(document.getElementById('hmm-canvas'), appState.hmm, appState.stateNames);
+  }
+});
+
+resizeCanvas();
+initChart();
+loadPreset('weather');
+
+// Draw initial random diagram
+const initHmm = initHMM(2, 3);
+drawStateDiagram(document.getElementById('hmm-canvas'), initHmm, PRESETS.weather.stateNames);
+renderPiTable(document.getElementById('matrix-pi'), initHmm.pi, PRESETS.weather.stateNames);
+renderATable(document.getElementById('matrix-a'), initHmm.A, PRESETS.weather.stateNames);
+renderBTable(document.getElementById('matrix-b'), initHmm.B, PRESETS.weather.stateNames, PRESETS.weather.obsNames);
+renderSequence(PRESETS.weather.obs, PRESETS.weather.obsNames);
+</script>
+</body>
+</html>

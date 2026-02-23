@@ -1,0 +1,1876 @@
+﻿<!DOCTYPE html>
+<html lang="en" prefix="og: https://ogp.me/ns#">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>HMM Baum-Welch Algorithm — Live Interactive Training Dashboard</title>
+    <meta name="description"
+        content="Train Hidden Markov Models in real time with the Baum-Welch (EM) algorithm. Interactive dashboard with animated state diagrams, convergence plots, heatmaps, and WebSocket streaming. Open source, educational, and production-ready.">
+    <meta name="keywords" content="Hidden Markov Model, HMM, Baum-Welch, Expectation-Maximization, EM algorithm, forward-backward, state transition diagram, machine learning, probabilistic model, sequence analysis, real-time training">
+    <meta name="author" content="Gabriel James">
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1">
+    <meta name="theme-color" content="#4B6587">
+    <link rel="canonical" href="https://bwa.gabrieljames.me/">
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="HMM Baum-Welch Algorithm — Live Training Dashboard">
+    <meta property="og:description" content="Train Hidden Markov Models in real time. Interactive dashboard with animated state diagrams, convergence plots, and parameter heatmaps.">
+    <meta property="og:url" content="https://bwa.gabrieljames.me/">
+    <meta property="og:site_name" content="HMM Baum-Welch Training Dashboard">
+    <meta property="og:locale" content="en_US">
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="HMM Baum-Welch Algorithm — Live Training Dashboard">
+    <meta name="twitter:description" content="Train Hidden Markov Models in real time with animated state diagrams, convergence plots, and parameter heatmaps.">
+
+    <!-- Structured Data (JSON-LD) -->
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "HMM Baum-Welch Training Dashboard",
+        "url": "https://bwa.gabrieljames.me/",
+        "description": "Interactive real-time Hidden Markov Model training dashboard using the Baum-Welch Expectation-Maximization algorithm. Features animated state transition diagrams, convergence plots, and parameter heatmaps.",
+        "applicationCategory": "EducationalApplication",
+        "operatingSystem": "Any",
+        "browserRequirements": "Requires a modern web browser with JavaScript enabled",
+        "author": {
+            "@type": "Person",
+            "name": "Gabriel James",
+            "url": "https://gabrieljames.me"
+        },
+        "offers": {
+            "@type": "Offer",
+            "price": "0",
+            "priceCurrency": "USD"
+        },
+        "isAccessibleForFree": true,
+        "license": "https://opensource.org/licenses/MIT",
+        "keywords": ["Hidden Markov Model", "Baum-Welch", "EM algorithm", "machine learning", "state transition diagram", "forward-backward algorithm"]
+    }
+    </script>
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
+        rel="stylesheet">
+
+    <!-- Prebuilt TailwindCSS -->
+    <link rel="stylesheet" href="/static/css/tailwind.generated.css">
+
+    <!-- D3.js, Plotly, Socket.IO loaded before closing </body> -->
+
+    <!-- State Transition Diagram (from state_transition_diagrams library) -->
+    <link rel="stylesheet" href="/std/css/state_diagram.css">
+
+    <style>
+        body {
+            background-color: #F7F6F2;
+            font-family: 'Inter', system-ui, sans-serif;
+        }
+
+        .font-mono-num {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* ── Floating Glass Pill ── */
+        .glass-pill {
+            position: fixed;
+            top: 16px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 100;
+            background: rgba(251, 251, 251, 0.025);
+            backdrop-filter: blur(3px) saturate(200%);
+            -webkit-backdrop-filter: blur(3px) saturate(200%);
+            border: 1px solid rgba(200, 198, 198, 0.2);
+            border-radius: 9999px;
+            padding: 12px 36px;
+            box-shadow: 0 8px 32px rgba(75, 101, 135, 0.08), 0 1px 4px rgba(0,0,0,0.03);
+        }
+
+        .glass-pill h1 {
+            font-size: 1rem;
+        }
+
+        @keyframes pulse-ring {
+            0% {
+                transform: scale(1);
+                opacity: 1;
+            }
+
+            80%,
+            100% {
+                transform: scale(2.2);
+                opacity: 0;
+            }
+        }
+
+        .status-pulse .pulse-dot {
+            animation: pulse-ring 1.4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+
+        .card {
+            background: rgba(247, 246, 242, 0.2);
+            backdrop-filter: blur(32px) saturate(170%);
+            -webkit-backdrop-filter: blur(32px) saturate(170%);
+            border: 1px solid rgba(200, 198, 198, 0.15);
+            border-radius: 10px;
+            box-shadow: 0 8px 32px rgba(75, 101, 135, 0.08), 0 1px 3px rgba(0,0,0,0.01);
+        }
+
+        /* ── Glass Input Fields ── */
+        input[type="number"],
+        input[type="text"],
+        textarea {
+            background: rgba(255, 255, 255, 0.35) !important;
+            backdrop-filter: blur(16px) saturate(140%) !important;
+            -webkit-backdrop-filter: blur(16px) saturate(140%) !important;
+            font-size: 0.95rem !important;
+        }
+
+        input[type="number"]:focus,
+        input[type="text"]:focus,
+        textarea:focus {
+            background: rgba(255, 255, 255, 0.5) !important;
+            backdrop-filter: blur(20px) saturate(170%) !important;
+            -webkit-backdrop-filter: blur(20px) saturate(170%) !important;
+        }
+
+        /* ── Glass Panel ── */
+        .glass-panel {
+            background: rgba(240, 229, 207, 0.15);
+            backdrop-filter: blur(24px) saturate(160%);
+            -webkit-backdrop-filter: blur(24px) saturate(160%);
+            border: 1px solid rgba(200, 198, 198, 0.12);
+        }
+
+        /* ── Glass Buttons ── */
+        .glass-button {
+            background: rgba(75, 101, 135, 0.06);
+            backdrop-filter: blur(16px) saturate(150%);
+            -webkit-backdrop-filter: blur(16px) saturate(150%);
+            border: 1px solid rgba(75, 101, 135, 0.15);
+            transition: all 0.3s ease;
+            font-size: 0.85rem;
+        }
+
+        .glass-button:hover {
+            background: rgba(75, 101, 135, 0.12);
+            backdrop-filter: blur(20px) saturate(170%);
+            -webkit-backdrop-filter: blur(20px) saturate(170%);
+            border-color: rgba(75, 101, 135, 0.25);
+        }
+
+        .heatmap-cell {
+            transition: background-color 0.3s ease;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.95rem;
+        }
+
+        /* ── (State diagram styles loaded from /std/css/state_diagram.css) ── */
+
+        .pi-bar {
+            transition: width 0.3s ease;
+            background: #4B6587;
+            border-radius: 4px;
+            height: 28px;
+        }
+
+        .section-title {
+            font-size: 0.85rem;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: #999999;
+        }
+
+        .js-plotly-plot .plotly .modebar {
+            display: none !important;
+        }
+
+        .d3-tooltip {
+            position: absolute;
+            background: rgba(75, 102, 135, 0.6);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            color: #fff;
+            padding: 8px 14px;
+            border-radius: 6px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            pointer-events: none;
+            z-index: 50;
+            white-space: nowrap;
+            border: 1px solid rgba(200, 198, 198, 0.15);
+        }
+
+        /* ── Iteration Log Table ── */
+        .iter-table {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.84rem;
+            border-collapse: separate;
+            border-spacing: 0;
+        }
+
+        .iter-table th {
+            background: rgba(240, 229, 207, 0.25);
+            backdrop-filter: blur(20px) saturate(160%);
+            -webkit-backdrop-filter: blur(20px) saturate(160%);
+            position: sticky;
+            top: 0;
+            z-index: 5;
+            font-family: 'Inter', sans-serif;
+            font-weight: 600;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #4a5568;
+            border-bottom: 2px solid rgba(200, 198, 198, 0.15);
+            white-space: nowrap;
+            padding: 10px 14px;
+        }
+
+        .iter-table td {
+            padding: 9px 14px;
+            border-bottom: 1px solid rgba(200, 198, 198, 0.2);
+            white-space: nowrap;
+        }
+
+        .iter-table tbody tr:hover {
+            background: rgba(240, 229, 207, 0.15);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+        }
+
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(200, 198, 198, 0.5);
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(75, 101, 135, 0.6);
+        }
+
+        /* ── Mobile responsive ── */
+        @media (max-width: 640px) {
+            header .max-w-7xl {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.5rem;
+                padding-top: 0.75rem;
+                padding-bottom: 0.75rem;
+            }
+
+            header h1 {
+                font-size: 1rem;
+            }
+
+            /* Glass pill */
+            .glass-pill {
+                padding: 8px 18px;
+                max-width: 92vw;
+            }
+            .glass-pill h1 {
+                font-size: 0.78rem;
+            }
+
+            main {
+                padding-left: 0.75rem;
+                padding-right: 0.75rem;
+                padding-top: 4.5rem;
+            }
+
+            main > section {
+                margin-bottom: 1.25rem;
+            }
+
+            /* Reduce spacing between sections */
+            .space-y-10 > * + * {
+                margin-top: 1.5rem;
+            }
+
+            .card {
+                padding: 0.75rem;
+            }
+
+            .card.p-6 {
+                padding: 0.75rem;
+            }
+
+            .card.p-5 {
+                padding: 0.75rem;
+            }
+
+            .card.p-8 {
+                padding: 1rem;
+            }
+
+            /* Configuration form */
+            .grid.grid-cols-1.md\:grid-cols-3 {
+                gap: 0.75rem;
+            }
+
+            label {
+                font-size: 0.85rem !important;
+                margin-bottom: 0.35rem !important;
+            }
+
+            input[type="number"],
+            input[type="text"],
+            textarea {
+                font-size: 0.85rem !important;
+                padding: 0.45rem 0.6rem !important;
+            }
+
+            /* Train button */
+            #train-btn {
+                width: 100%;
+                justify-content: center;
+                padding: 0.75rem 1.5rem;
+                font-size: 0.95rem;
+            }
+
+            /* Preset buttons */
+            .flex.items-center.gap-3.pt-1 {
+                flex-wrap: wrap;
+                gap: 0.5rem;
+            }
+
+            #preset-weather,
+            #preset-dna {
+                flex: 1;
+                min-width: 0;
+                text-align: center;
+                padding: 0.5rem 0.75rem;
+                font-size: 0.8rem;
+            }
+
+            /* Live metrics cards */
+            .grid.grid-cols-2.md\:grid-cols-5 {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 0.5rem;
+            }
+
+            .grid.grid-cols-2.md\:grid-cols-5 .card p.text-2xl {
+                font-size: 1.2rem;
+            }
+
+            .grid.grid-cols-2.md\:grid-cols-5 .card p.text-sm {
+                font-size: 0.7rem;
+            }
+
+            /* Charts */
+            #ll-chart,
+            #prob-chart,
+            #error-chart,
+            #comp-chart,
+            #evolution-chart {
+                height: 220px !important;
+            }
+
+            .card.p-5.relative {
+                padding: 0.5rem;
+            }
+
+            /* Chart download buttons on mobile */
+            .card .absolute.left-5.bottom-8 {
+                left: 8px;
+                bottom: 8px;
+            }
+
+            /* Heatmaps */
+            .grid.grid-cols-1.lg\:grid-cols-2 {
+                gap: 1rem;
+            }
+
+            .heatmap-cell {
+                font-size: 0.6rem;
+                padding: 3px 4px;
+            }
+
+            /* State diagram */
+            .hmm-canvas {
+                min-height: 280px;
+            }
+
+            #diagram-card.card.p-6 {
+                padding: 0.5rem;
+            }
+
+            /* Iteration log table */
+            .iter-table {
+                font-size: 0.6rem;
+            }
+
+            .iter-table td,
+            .iter-table th {
+                padding: 4px 6px;
+            }
+
+            /* Intermediate variables tabs */
+            .flex.gap-4.mb-4 {
+                gap: 0.35rem;
+            }
+
+            .flex.gap-4.mb-4 button {
+                font-size: 0.65rem;
+                padding: 0.2rem 0.5rem;
+            }
+
+            /* Theory section */
+            .grid.grid-cols-1.md\:grid-cols-2 {
+                gap: 1rem;
+            }
+
+            .grid.grid-cols-1.md\:grid-cols-3 {
+                gap: 0.75rem;
+            }
+
+            .card.p-8.space-y-8 {
+                padding: 1rem;
+            }
+
+            .card.p-8.space-y-8 h3 {
+                font-size: 0.9rem;
+            }
+
+            .card.p-8.space-y-8 p {
+                font-size: 0.8rem;
+            }
+
+            /* Application cards */
+            .grid.grid-cols-1.sm\:grid-cols-2.lg\:grid-cols-4 {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 0.5rem;
+            }
+
+            .grid.grid-cols-1.sm\:grid-cols-2.lg\:grid-cols-4 .group .w-12 {
+                width: 2.25rem;
+                height: 2.25rem;
+                font-size: 1.25rem;
+                margin-bottom: 0.5rem;
+            }
+
+            .grid.grid-cols-1.sm\:grid-cols-2.lg\:grid-cols-4 h4 {
+                font-size: 0.75rem;
+            }
+
+            /* Footer */
+            footer .max-w-7xl {
+                flex-direction: column;
+                text-align: center;
+                gap: 0.75rem;
+                padding: 1rem 0.75rem;
+            }
+
+            footer .flex.items-center.gap-4 {
+                justify-content: center;
+            }
+
+            footer nav {
+                justify-content: center;
+            }
+
+            /* Section titles */
+            .section-title {
+                font-size: 0.75rem;
+            }
+
+            /* Scrollbar - thinner on mobile */
+            ::-webkit-scrollbar {
+                width: 3px;
+                height: 3px;
+            }
+
+            /* Status badge */
+            .flex.justify-end.-mb-6 {
+                margin-bottom: -0.25rem;
+            }
+
+            @keyframes fadeIn {
+                from { opacity: 0; transform: translateY(-4px); }
+                to { opacity: 1; transform: translateY(0); }
+            }
+
+            .animate-fadeIn {
+                animation: fadeIn 0.25s ease-out;
+            }
+        }
+
+        /* ── Medium screens (tablets) ── */
+        @media (min-width: 641px) and (max-width: 1023px) {
+            main {
+                padding-left: 1.25rem;
+                padding-right: 1.25rem;
+            }
+
+            .glass-pill {
+                padding: 10px 28px;
+            }
+
+            .grid.grid-cols-1.sm\:grid-cols-2.lg\:grid-cols-4 {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (min-width: 641px) {
+            @keyframes fadeIn {
+                from { opacity: 0; transform: translateY(-4px); }
+                to { opacity: 1; transform: translateY(0); }
+            }
+
+            .animate-fadeIn {
+                animation: fadeIn 0.25s ease-out;
+            }
+        }
+    </style>
+</head>
+
+<body class="min-h-screen antialiased text-slate-700">
+
+    <!-- SEO: noscript fallback for crawlers -->
+    <noscript>
+        <div style="padding:2rem;text-align:center;font-family:sans-serif">
+            <h1>HMM Baum-Welch Algorithm — Interactive Training Dashboard</h1>
+            <p>This application requires JavaScript for interactive Hidden Markov Model training and visualization.
+               Please enable JavaScript to use the full dashboard.</p>
+        </div>
+    </noscript>
+
+    <!-- ══════════════ 1. FLOATING GLASS PILL ══════════════ -->
+    <header class="glass-pill" role="banner">
+        <h1 class="text-sm font-semibold text-slate-800 tracking-tight whitespace-nowrap">
+            Hidden Markov Model &mdash; Baum&ndash;Welch Algorithm
+        </h1>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-6 pt-20 pb-8 space-y-10" role="main" aria-label="HMM Training Dashboard">
+
+        <!-- Status Badge (below pill, inside main flow) -->
+        <div class="flex justify-end -mb-6">
+            <div id="status-badge"
+                class="flex items-center gap-2 px-4 py-2 rounded-full glass-panel text-sm font-medium text-academic-muted">
+                <span class="w-2 h-2 rounded-full bg-slate-400"></span>
+                <span id="status-text">Idle</span>
+            </div>
+        </div>
+
+        <!-- ══════════════ 2. CONFIGURATION ══════════════ -->
+        <section>
+            <p class="section-title mb-3">Configuration</p>
+            <div class="card p-6">
+                <form id="train-form" class="space-y-5">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                        <div>
+                            <label for="n-states" class="block text-base font-medium text-slate-700 mb-2">Hidden States (N)</label>
+                            <input id="n-states" type="number" min="2" max="10" value="2"
+                                class="w-full px-3 py-2 border border-palette-gray/40 rounded-lg text-sm font-mono-num focus:outline-none focus:ring-2 focus:ring-palette-blue/30 focus:border-palette-blue bg-white">
+                        </div>
+                        <div>
+                            <label for="max-iter" class="block text-base font-medium text-slate-700 mb-2">Max Iterations</label>
+                            <input id="max-iter" type="number" min="1" max="2000" value="100"
+                                class="w-full px-3 py-2 border border-palette-gray/40 rounded-lg text-sm font-mono-num focus:outline-none focus:ring-2 focus:ring-palette-blue/30 focus:border-palette-blue bg-white">
+                        </div>
+                        <div>
+                            <label for="tolerance" class="block text-base font-medium text-slate-700 mb-2">Tolerance</label>
+                            <input id="tolerance" type="text" value="1e-6"
+                                class="w-full px-3 py-2 border border-palette-gray/40 rounded-lg text-sm font-mono-num focus:outline-none focus:ring-2 focus:ring-palette-blue/30 focus:border-palette-blue bg-white">
+                        </div>
+                    </div>
+                    <div>
+                        <label for="observations" class="block text-base font-medium text-slate-700 mb-2">Observation Sequence (comma-separated integers, 0-based)</label>
+                        <textarea id="observations" rows="3"
+                            class="w-full px-3 py-2 border border-palette-gray/40 rounded-lg text-sm font-mono-num leading-relaxed focus:outline-none focus:ring-2 focus:ring-palette-blue/30 focus:border-palette-blue bg-white resize-y"
+                            placeholder="e.g. 0, 1, 2, 0, 0, 1, 2, 1, 0, 2">0, 1, 2, 0, 0, 1, 2, 1, 0, 2, 2, 0, 1, 0, 1, 2, 2, 0, 1, 1, 0, 2, 0, 1, 2, 0, 0, 1, 2, 1, 0, 2, 2, 0, 1, 0, 1, 2, 2, 0, 1, 1, 0, 2, 0, 1, 2, 0, 0, 1</textarea>
+                    </div>
+                    <div class="flex items-center gap-3 pt-1">
+                        <button type="button" id="preset-weather"
+                            class="text-sm px-4 py-2 rounded-lg glass-button text-slate-700 font-medium transition">Load Weather Preset</button>
+                        <button type="button" id="preset-dna"
+                            class="text-sm px-4 py-2 rounded-lg glass-button text-slate-700 font-medium transition">Load DNA Preset</button>
+                    </div>
+
+                    <!-- Advanced Initialization Toggle -->
+                    <div class="pt-3 pb-1">
+                        <div class="flex items-center gap-3">
+                            <button type="button" id="toggle-advanced"
+                                class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent bg-slate-200 transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-palette-blue focus:ring-offset-2"
+                                role="switch" aria-checked="false">
+                                <span id="toggle-knob" class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out translate-x-0"></span>
+                            </button>
+                            <span class="text-base font-medium text-slate-700">Advanced Initialization</span>
+                            <span id="init-mode-label" class="text-xs text-slate-400 italic ml-1">Using random initialization</span>
+                        </div>
+                        <div id="advanced-init-panel"
+                            class="hidden mt-3 space-y-3 p-4 glass-panel rounded-lg text-xs text-academic-muted animate-fadeIn">
+                            <div>
+                                <label class="block font-medium mb-1 text-slate-700">Transition Matrix A (JSON)</label>
+                                <textarea id="init-a" rows="3"
+                                    class="w-full font-mono border border-palette-gray/40 rounded-lg focus:ring-palette-blue focus:border-palette-blue text-xs bg-white"
+                                    placeholder='[[0.7, 0.3], [0.4, 0.6]]' spellcheck="false"></textarea>
+                            </div>
+                            <div>
+                                <label class="block font-medium mb-1 text-slate-700">Emission Matrix B (JSON)</label>
+                                <textarea id="init-b" rows="3"
+                                    class="w-full font-mono border border-palette-gray/40 rounded-lg focus:ring-palette-blue focus:border-palette-blue text-xs bg-white"
+                                    placeholder='[[0.9, 0.1], [0.2, 0.8]]' spellcheck="false"></textarea>
+                            </div>
+                            <div>
+                                <label class="block font-medium mb-1 text-slate-700">Initial Probabilities &pi; (JSON)</label>
+                                <input type="text" id="init-pi"
+                                    class="w-full font-mono border border-palette-gray/40 rounded-lg focus:ring-palette-blue focus:border-palette-blue text-xs h-8 bg-white"
+                                    placeholder='[0.6, 0.4]' spellcheck="false">
+                            </div>
+                            <p class="text-amber-600 italic text-[10px]">* Provide custom A, B, &pi; matrices in JSON format. Leave individual fields empty for random initialization of that parameter.</p>
+                        </div>
+                    </div>
+
+                    <div class="pt-2">
+                        <button type="submit" id="train-btn"
+                            class="inline-flex items-center px-7 py-3 bg-palette-blue text-white text-base font-semibold rounded-lg hover:bg-[#3a4a63] focus:outline-none focus:ring-2 focus:ring-palette-blue/50 disabled:opacity-50 disabled:cursor-not-allowed transition shadow-lg hover:shadow-xl">
+                            <svg id="train-spinner" class="hidden animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                                xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor"
+                                    stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor"
+                                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                            </svg>
+                            <span id="train-btn-text">Train Model</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </section>
+
+        <!-- ══════════════ 3. LIVE METRICS ══════════════ -->
+        <section id="results-section" class="hidden">
+            <p class="section-title mb-3">Live Metrics</p>
+            <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+                <div class="card p-4">
+                    <p class="text-sm text-academic-muted font-medium mb-2">Iteration</p>
+                    <p id="metric-iter" class="text-2xl font-mono-num font-semibold text-slate-800">&mdash;</p>
+                </div>
+                <div class="card p-4">
+                    <p class="text-sm text-academic-muted font-medium mb-2">Log-Likelihood</p>
+                    <p id="metric-ll" class="text-2xl font-mono-num font-semibold text-slate-800">&mdash;</p>
+                </div>
+                <div class="card p-4">
+                    <p class="text-sm text-academic-muted font-medium mb-2">&Delta; (Change)</p>
+                    <p id="metric-delta" class="text-2xl font-mono-num font-semibold text-slate-800">&mdash;</p>
+                </div>
+                <div class="card p-4">
+                    <p class="text-sm text-academic-muted font-medium mb-2">Status</p>
+                    <p id="metric-status" class="text-2xl font-semibold text-slate-800">&mdash;</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ══════════════ 4. LOG-LIKELIHOOD CHART ══════════════ -->
+        <section id="ll-section" class="hidden">
+            <p class="section-title mb-3">Log-Likelihood Convergence &mdash; log P(O|&lambda;)</p>
+            <div class="card p-5 relative">
+                <div id="ll-chart" style="width:100%; height:320px;"></div>
+                <button onclick="downloadChart('ll-chart', 'hmm_log_likelihood')" class="absolute left-5 bottom-8 z-10 p-2 text-slate-600 hover:text-slate-800 bg-white hover:bg-slate-50 border border-slate-300 rounded-lg transition-colors" title="Download chart as PNG">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                </button>
+            </div>
+        </section>
+
+        <!-- ══════════════ 4b. P(O|lambda) CHART ══════════════ -->
+        <section id="prob-section" class="hidden">
+            <p class="section-title mb-3">Observation Probability &mdash; P(O|&lambda;)</p>
+            <div class="card p-5 relative">
+                <div id="prob-chart" style="width:100%; height:320px;"></div>
+                <button onclick="downloadChart('prob-chart', 'hmm_probability')" class="absolute left-5 bottom-8 z-10 p-2 text-slate-600 hover:text-slate-800 bg-white hover:bg-slate-50 border border-slate-300 rounded-lg transition-colors" title="Download chart as PNG">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                </button>
+            </div>
+        </section>
+
+        <!-- ══════════════ 4c. ERROR CHART (1 - P(O|lambda)) ══════════════ -->
+        <section id="error-section" class="hidden">
+            <p class="section-title mb-3">Optimization Loss &mdash; Negative Log-Likelihood</p>
+            <div class="card p-5 relative">
+                <div id="error-chart" style="width:100%; height:320px;"></div>
+                <button onclick="downloadChart('error-chart', 'hmm_error')" class="absolute left-5 bottom-8 z-10 p-2 text-slate-600 hover:text-slate-800 bg-white hover:bg-slate-50 border border-slate-300 rounded-lg transition-colors" title="Download chart as PNG">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                </button>
+            </div>
+        </section>
+
+        <!-- ══════════════ 4d. COMPLEMENT CHART (1 - P) ══════════════ -->
+        <section id="comp-section" class="hidden">
+            <p class="section-title mb-3">Probability Complement &mdash; 1 &minus; P(O|&lambda;)<sup>1/T</sup> vs Model Version</p>
+            <div class="card p-5 relative">
+                <div id="comp-chart" style="width:100%; height:320px;"></div>
+                <button onclick="downloadChart('comp-chart', 'hmm_complement')" class="absolute left-5 bottom-8 z-10 p-2 text-slate-600 hover:text-slate-800 bg-white hover:bg-slate-50 border border-slate-300 rounded-lg transition-colors" title="Download chart as PNG">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                </button>
+            </div>
+        </section>
+
+        <!-- ══════════════ 5. STATE DIAGRAM ══════════════ -->
+        <section id="diagram-section" class="hidden">
+            <p class="section-title mb-3">HMM State Transition Diagram</p>
+            <div class="card p-6" id="diagram-card">
+                <!-- Diagram Canvas -->
+                <div id="state-diagram-container" class="hmm-canvas"></div>
+
+                <!-- Replay Controls -->
+                <div class="hmm-controls mt-4">
+                    <button id="hmm-first" class="hmm-ctrl-btn" title="First" disabled>⏮</button>
+                    <button id="hmm-back" class="hmm-ctrl-btn" title="Step Back" disabled>⏪</button>
+                    <button id="hmm-play" class="hmm-ctrl-btn" title="Play / Pause" disabled>▶</button>
+                    <button id="hmm-fwd" class="hmm-ctrl-btn" title="Step Forward" disabled>⏩</button>
+                    <button id="hmm-last" class="hmm-ctrl-btn" title="Last" disabled>⏭</button>
+                    <select id="hmm-speed" class="hmm-speed-select" title="Playback Speed">
+                        <option value="0.25">0.25×</option>
+                        <option value="0.5">0.5×</option>
+                        <option value="1" selected>1×</option>
+                        <option value="2">2×</option>
+                        <option value="5">5×</option>
+                    </select>
+                    <input id="hmm-timeline" class="hmm-timeline" type="range" min="0" max="0" value="0" step="1"
+                        title="Iteration Timeline">
+                    <span id="hmm-iter-label" class="hmm-iter-label">No data</span>
+                    <button id="hmm-particles" class="hmm-ctrl-btn active" title="Toggle Particles">✦</button>
+                    <button id="hmm-decongestion" class="hmm-ctrl-btn" title="Transition display mode&#10;Filtered mode (ON):&#10;• Hidden→Observation keeps top 2 emissions per hidden state&#10;• Also keeps any emission with probability ≥ 0.35&#10;• Non-prominent emission lines are very faint and thinner&#10;• Emission labels show only for stronger prominent edges (> 0.08)&#10;All mode (OFF): shows all transitions with varied arc radius to reduce overlap"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12 10 19 14 21 14 12 22 3"/></svg></button>
+                    <span id="hmm-decongestion-label" class="hmm-mode-label">All</span>
+                    <button id="hmm-fullscreen" class="hmm-ctrl-btn" title="Fullscreen"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg></button>
+                    <button id="hmm-save" class="hmm-ctrl-btn" title="Save Diagram as PNG"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>
+                </div>
+
+                <!-- Inspector Panel -->
+                <div id="hmm-inspector" class="hmm-inspector mt-4"></div>
+            </div>
+        </section>
+
+        <!-- ══════════════ 6-7. HEATMAPS ══════════════ -->
+        <section id="heatmaps-section" class="hidden">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div>
+                    <p class="section-title mb-3">Transition Matrix A</p>
+                    <div class="card p-5">
+                        <div id="heatmap-A" class="flex justify-center"></div>
+                    </div>
+                </div>
+                <div>
+                    <p class="section-title mb-3">Emission Matrix B</p>
+                    <div class="card p-5">
+                        <div id="heatmap-B" class="flex justify-center"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ══════════════ 8. PI BARS ══════════════ -->
+        <section id="pi-section" class="hidden">
+            <p class="section-title mb-3">Initial Distribution &pi;</p>
+            <div class="card p-5">
+                <div id="pi-bars" class="space-y-3"></div>
+            </div>
+        </section>
+
+        <!-- ══════════════ 9. PARAMETER EVOLUTION ══════════════ -->
+        <section id="evolution-section" class="hidden">
+            <p class="section-title mb-3">Parameter Evolution &mdash; A[i][j] over iterations</p>
+            <div class="card p-5 relative">
+                <div id="evolution-chart" style="width:100%; height:320px;"></div>
+                <button onclick="downloadChart('evolution-chart', 'hmm_parameter_evolution')" class="absolute left-5 bottom-8 z-10 p-2 text-slate-600 hover:text-slate-800 bg-white hover:bg-slate-50 border border-slate-300 rounded-lg transition-colors" title="Download chart as PNG">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                </button>
+            </div>
+        </section>
+
+        <!-- ══════════════ 10. ITERATION LOG TABLE ══════════════ -->
+        <section id="iterlog-section" class="hidden">
+            <p class="section-title mb-3">Iteration Log</p>
+            <div class="card">
+                <div style="max-height: 420px; overflow-y: auto; overflow-x: auto;">
+                    <table class="iter-table w-full text-left" id="iter-table">
+                        <thead>
+                            <tr id="iter-table-head"></tr>
+                        </thead>
+                        <tbody id="iter-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ══════════════ 10.5. INTERMEDIATE VARIABLES (Alpha, Beta, Gamma) ══════════════ -->
+        <section id="intermediate-section" class="hidden">
+            <p class="section-title mb-3">Intermediate Variables (Current Iteration)</p>
+            <div class="card p-4">
+                <div class="flex gap-4 mb-4 border-b border-palette-gray/25 pb-2">
+                    <button id="btn-show-alpha" class="text-xs font-semibold px-3 py-1 rounded-lg bg-palette-blue/20 text-slate-700">Alpha (&alpha;)</button>
+                    <button id="btn-show-beta" class="text-xs font-semibold px-3 py-1 rounded-lg hover:bg-palette-warm/50 text-slate-500">Beta (&beta;)</button>
+                    <button id="btn-show-gamma" class="text-xs font-semibold px-3 py-1 rounded-lg hover:bg-palette-warm/50 text-slate-500">Gamma (&gamma;)</button>
+                </div>
+                
+                <p class="text-xs text-academic-muted mb-2 italic">Showing first 20 time steps only.</p>
+                <div style="overflow-x: auto;">
+                    <div id="intermediate-container" class="font-mono text-xs"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ══════════════ 11. FINAL SUMMARY TABLE ══════════════ -->
+        <section id="summary-section" class="hidden">
+            <p class="section-title mb-3">Final Learned Parameters</p>
+            <div class="card p-6" id="summary-content"></div>
+        </section>
+
+        <!-- ══════════════ 12. ALGORITHM EXPLANATION ══════════════ -->
+        <section>
+            <p class="section-title mb-3">HMM Theory &amp; Algorithm Reference</p>
+            <div class="card p-8 space-y-8 text-sm text-slate-800 leading-relaxed text-justify shadow-sm">
+
+                <!-- 12a. Formal Definition -->
+                <div>
+                    <h3 class="font-semibold text-slate-800 mb-2 text-base">1. Hidden Markov Model &mdash; Formal Definition</h3>
+                    <p class="mb-3">
+                        A Hidden Markov Model (HMM) is a probabilistic generative model for sequential data.
+                        The system is assumed to follow a Markov chain of <em>hidden</em> (unobservable) states,
+                        each of which emits an <em>observable</em> symbol according to a state-dependent probability distribution.
+                    </p>
+                    <p class="mb-3">
+                        An HMM is fully specified by the parameter tuple
+                        <span class="font-mono-num text-[#4B6587] font-semibold">&lambda; = (A, B, &pi;)</span>, where:
+                    </p>
+                    <div class="overflow-x-auto">
+                        <table class="text-xs border border-palette-gray/30 rounded-lg w-full mb-3">
+                            <thead class="bg-palette-warm/40">
+                                <tr>
+                                    <th class="px-4 py-2.5 text-left font-semibold text-slate-700 border-b border-palette-gray/30">Symbol</th>
+                                    <th class="px-4 py-2.5 text-left font-semibold text-slate-700 border-b border-palette-gray/30">Name</th>
+                                    <th class="px-4 py-2.5 text-left font-semibold text-slate-700 border-b border-palette-gray/30">Definition</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr class="border-b border-palette-gray/20">
+                                    <td class="px-4 py-2 font-mono-num text-[#4B6587] font-semibold">A</td>
+                                    <td class="px-4 py-2">State Transition Matrix</td>
+                                    <td class="px-4 py-2">A[i][j] = P(q<sub>t+1</sub> = S<sub>j</sub> | q<sub>t</sub> = S<sub>i</sub>). Each row sums to 1.</td>
+                                </tr>
+                                <tr class="border-b border-palette-gray/20">
+                                    <td class="px-4 py-2 font-mono-num text-[#4B6587] font-semibold">B</td>
+                                    <td class="px-4 py-2">Emission (Observation) Matrix</td>
+                                    <td class="px-4 py-2">B[j][k] = P(O<sub>t</sub> = v<sub>k</sub> | q<sub>t</sub> = S<sub>j</sub>). Each row sums to 1.</td>
+                                </tr>
+                                <tr>
+                                    <td class="px-4 py-2 font-mono-num text-[#4B6587] font-semibold">&pi;</td>
+                                    <td class="px-4 py-2">Initial State Distribution</td>
+                                    <td class="px-4 py-2">&pi;[i] = P(q<sub>1</sub> = S<sub>i</sub>). Elements sum to 1.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <p class="text-xs text-academic-muted italic">
+                        The model assumes the <strong>Markov property</strong>: the probability of transitioning to
+                        state S<sub>j</sub> depends only on the current state S<sub>i</sub>, not on the history of states.
+                        It also assumes <strong>output independence</strong>: the observation at time <em>t</em> depends
+                        only on the current state at time <em>t</em>.
+                    </p>
+                </div>
+
+                <hr class="border-palette-gray/20">
+
+                <!-- 12b. Three Fundamental Problems -->
+                <div>
+                    <h3 class="font-semibold text-slate-800 mb-2 text-base">2. Three Fundamental Problems of HMMs</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="bg-palette-warm/40 border border-palette-gray/30 rounded-lg p-4">
+                            <p class="font-semibold text-slate-700 mb-1 text-xs uppercase tracking-wider">Problem 1 &mdash; Evaluation</p>
+                            <p class="text-xs text-slate-600 mb-2">Given &lambda; and an observation sequence O, compute P(O|&lambda;).</p>
+                            <p class="text-xs text-slate-500 italic">Solved by the <strong>Forward Algorithm</strong>.</p>
+                        </div>
+                        <div class="bg-palette-warm/40 border border-palette-gray/30 rounded-lg p-4">
+                            <p class="font-semibold text-slate-700 mb-1 text-xs uppercase tracking-wider">Problem 2 &mdash; Decoding</p>
+                            <p class="text-xs text-slate-600 mb-2">Given &lambda; and O, find the most likely hidden state sequence Q*.</p>
+                            <p class="text-xs text-slate-500 italic">Solved by the <strong>Viterbi Algorithm</strong>.</p>
+                        </div>
+                        <div class="bg-palette-blue/10 border border-palette-gray/30 rounded-lg p-4">
+                            <p class="font-semibold text-slate-700 mb-1 text-xs uppercase tracking-wider">Problem 3 &mdash; Learning</p>
+                            <p class="text-xs text-slate-600 mb-2">Given O, find &lambda;* = argmax<sub>&lambda;</sub> P(O|&lambda;).</p>
+                            <p class="text-xs text-slate-500 italic">Solved by the <strong>Baum&ndash;Welch Algorithm</strong> (this tool).</p>
+                        </div>
+                    </div>
+                </div>
+
+                <hr class="border-palette-gray/20">
+
+                <!-- 12c. Forward Algorithm -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div>
+                        <h3 class="font-semibold text-slate-800 mb-2 text-base">3. Forward Algorithm</h3>
+                        <p class="mb-3">
+                            The forward variable <span class="font-mono-num text-[#4B6587]">&alpha;<sub>t</sub>(i)</span>
+                            represents the probability of observing the partial sequence O<sub>1</sub>, O<sub>2</sub>, &hellip;, O<sub>t</sub>
+                            and being in state S<sub>i</sub> at time <em>t</em>.
+                        </p>
+                        <div class="bg-palette-warm/30 rounded-lg p-3 mb-2 font-mono text-xs border border-palette-gray/30 space-y-2">
+                            <p class="text-slate-400 italic">Initialization:</p>
+                            <p>&alpha;<sub>1</sub>(i) = &pi;<sub>i</sub> &middot; B[i][O<sub>1</sub>]</p>
+                            <p class="text-slate-400 italic mt-2">Induction (t = 2, &hellip;, T):</p>
+                            <p>&alpha;<sub>t</sub>(j) = [ &Sigma;<sub>i=1</sub><sup>N</sup> &alpha;<sub>t&minus;1</sub>(i) &middot; A[i][j] ] &middot; B[j][O<sub>t</sub>]</p>
+                            <p class="text-slate-400 italic mt-2">Termination:</p>
+                            <p>P(O|&lambda;) = &Sigma;<sub>i=1</sub><sup>N</sup> &alpha;<sub>T</sub>(i)</p>
+                        </div>
+                        <p class="text-xs text-academic-muted">Complexity: <span class="font-mono-num">O(N&sup2;T)</span> vs brute-force <span class="font-mono-num">O(N<sup>T</sup>)</span></p>
+                    </div>
+                    <div>
+                        <h3 class="font-semibold text-slate-800 mb-2 text-base">4. Backward Algorithm</h3>
+                        <p class="mb-3">
+                            The backward variable <span class="font-mono-num text-[#4B6587]">&beta;<sub>t</sub>(i)</span>
+                            represents the probability of the partial observation sequence from <em>t+1</em> to <em>T</em>,
+                            given state S<sub>i</sub> at time <em>t</em>.
+                        </p>
+                        <div class="bg-palette-warm/30 rounded-lg p-3 mb-2 font-mono text-xs border border-palette-gray/30 space-y-2">
+                            <p class="text-slate-400 italic">Initialization:</p>
+                            <p>&beta;<sub>T</sub>(i) = 1 &nbsp; &forall; i</p>
+                            <p class="text-slate-400 italic mt-2">Induction (t = T&minus;1, &hellip;, 1):</p>
+                            <p>&beta;<sub>t</sub>(i) = &Sigma;<sub>j=1</sub><sup>N</sup> A[i][j] &middot; B[j][O<sub>t+1</sub>] &middot; &beta;<sub>t+1</sub>(j)</p>
+                        </div>
+                        <p class="text-xs text-academic-muted">Both &alpha; and &beta; are computed in the E-Step of Baum&ndash;Welch.</p>
+                    </div>
+                </div>
+
+                <hr class="border-palette-gray/20">
+
+                <!-- 12d. Baum-Welch EM -->
+                <div>
+                    <h3 class="font-semibold text-slate-800 mb-3 text-base">5. Baum&ndash;Welch Algorithm (EM for HMMs)</h3>
+                    <p class="mb-4">
+                        The Baum&ndash;Welch algorithm is a special case of the Expectation&ndash;Maximization (EM) framework
+                        applied to HMMs. It iteratively alternates between computing the expected sufficient statistics
+                        (<strong>E-Step</strong>) and re-estimating the model parameters (<strong>M-Step</strong>).
+                    </p>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="bg-palette-warm/30 border border-palette-gray/30 rounded-lg p-4">
+                            <h4 class="font-semibold text-slate-700 mb-2">E-Step: Compute Responsibilities</h4>
+                            <ul class="space-y-2 text-xs text-slate-600">
+                                <li class="flex items-start gap-2">
+                                    <span class="text-palette-blue mt-0.5">&#9654;</span>
+                                    <span>Compute <span class="font-mono-num font-semibold">&alpha;<sub>t</sub>(i)</span> via the forward pass</span>
+                                </li>
+                                <li class="flex items-start gap-2">
+                                    <span class="text-palette-blue mt-0.5">&#9654;</span>
+                                    <span>Compute <span class="font-mono-num font-semibold">&beta;<sub>t</sub>(i)</span> via the backward pass</span>
+                                </li>
+                                <li class="flex items-start gap-2">
+                                    <span class="text-palette-blue mt-0.5">&#9654;</span>
+                                    <span>
+                                        <span class="font-mono-num font-semibold">&gamma;<sub>t</sub>(i)</span> =
+                                        P(q<sub>t</sub>=S<sub>i</sub> | O, &lambda;) =
+                                        <span class="font-mono-num">&alpha;<sub>t</sub>(i) &middot; &beta;<sub>t</sub>(i) / P(O|&lambda;)</span>
+                                    </span>
+                                </li>
+                                <li class="flex items-start gap-2">
+                                    <span class="text-palette-blue mt-0.5">&#9654;</span>
+                                    <span>
+                                        <span class="font-mono-num font-semibold">&xi;<sub>t</sub>(i,j)</span> =
+                                        P(q<sub>t</sub>=S<sub>i</sub>, q<sub>t+1</sub>=S<sub>j</sub> | O, &lambda;)
+                                    </span>
+                                </li>
+                            </ul>
+                        </div>
+                        <div class="bg-palette-blue/10 border border-palette-blue/25 rounded-lg p-4">
+                            <h4 class="font-semibold text-slate-700 mb-2">M-Step: Re-estimate Parameters</h4>
+                            <div class="space-y-2 text-xs text-slate-600 font-mono">
+                                <div class="flex items-start gap-2">
+                                    <span class="text-palette-gray mt-0.5 font-sans">&#9654;</span>
+                                    <span>
+                                        <span class="font-semibold font-sans">Transition:</span>
+                                        A&#770;[i][j] = &Sigma;<sub>t=1</sub><sup>T&minus;1</sup> &xi;<sub>t</sub>(i,j)
+                                        / &Sigma;<sub>t=1</sub><sup>T&minus;1</sup> &gamma;<sub>t</sub>(i)
+                                    </span>
+                                </div>
+                                <div class="flex items-start gap-2">
+                                    <span class="text-palette-gray mt-0.5 font-sans">&#9654;</span>
+                                    <span>
+                                        <span class="font-semibold font-sans">Emission:</span>
+                                        B&#770;[j][k] = &Sigma;<sub>t: O<sub>t</sub>=v<sub>k</sub></sub> &gamma;<sub>t</sub>(j)
+                                        / &Sigma;<sub>t=1</sub><sup>T</sup> &gamma;<sub>t</sub>(j)
+                                    </span>
+                                </div>
+                                <div class="flex items-start gap-2">
+                                    <span class="text-palette-gray mt-0.5 font-sans">&#9654;</span>
+                                    <span>
+                                        <span class="font-semibold font-sans">Initial:</span>
+                                        &pi;&#770;[i] = &gamma;<sub>1</sub>(i)
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <hr class="border-palette-gray/20">
+
+                <!-- 12e. Convergence & Scaling -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div>
+                        <h3 class="font-semibold text-slate-800 mb-2 text-base">6. Convergence Guarantees</h3>
+                        <p class="mb-2">
+                            The EM framework guarantees that the log-likelihood is <strong>monotonically non-decreasing</strong>
+                            across iterations:
+                        </p>
+                        <div class="bg-palette-warm/30 rounded-lg p-3 mb-3 font-mono text-xs border border-palette-gray/30 text-center">
+                            log P(O|&lambda;<sup>(n+1)</sup>) &ge; log P(O|&lambda;<sup>(n)</sup>)
+                        </div>
+                        <p class="text-xs text-academic-muted mb-2">
+                            Convergence is to a <em>local</em> maximum (or saddle point) of the likelihood surface.
+                            The algorithm terminates when
+                            <span class="font-mono-num">|&Delta; log L| &lt; &epsilon;</span> (the user-specified tolerance)
+                            or when the maximum iteration count is reached.
+                        </p>
+                        <p class="text-xs text-academic-muted">
+                            In practice, multiple random restarts are recommended to mitigate sensitivity to initialization.
+                        </p>
+                    </div>
+                    <div>
+                        <h3 class="font-semibold text-slate-800 mb-2 text-base">7. Numerical Stability &mdash; Scaling</h3>
+                        <p class="mb-2">
+                            For long observation sequences, the forward and backward variables can underflow to zero.
+                            This implementation uses <strong>log-space scaling</strong> (Rabiner, 1989):
+                        </p>
+                        <ul class="list-disc list-inside space-y-1 text-xs text-slate-600 mb-3">
+                            <li>At each time step <em>t</em>, compute a scaling coefficient <span class="font-mono-num">c<sub>t</sub></span></li>
+                            <li><span class="font-mono-num">c<sub>t</sub> = 1 / &Sigma;<sub>i</sub> &alpha;&#771;<sub>t</sub>(i)</span>, applied to normalize &alpha;</li>
+                            <li>The same coefficients are used to scale &beta;</li>
+                            <li>Log-likelihood recovered as <span class="font-mono-num">log P(O|&lambda;) = &minus;&Sigma;<sub>t</sub> log c<sub>t</sub></span></li>
+                        </ul>
+                        <p class="text-xs text-academic-muted">
+                            This avoids floating-point underflow while preserving exact computation of &gamma; and &xi;.
+                        </p>
+                    </div>
+                </div>
+
+                <hr class="border-palette-gray/20">
+
+                <!-- 12f. Applications -->
+                <div>
+                    <h3 class="font-semibold text-slate-800 mb-4 text-base font-sans">8. Applications</h3> <!-- Kept sans for headers -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 font-sans"> <!-- Sans for these cards -->
+                        <!-- Bio -->
+                        <div class="group relative p-4 rounded-2xl glass-panel border border-palette-gray/10 hover:border-palette-blue/20 hover:bg-white/40 transition-all duration-300 hover:shadow-lg overflow-hidden">
+                            <div class="absolute inset-0 bg-gradient-to-br from-blue-50/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                            <div class="relative z-10 flex flex-col items-center text-center">
+                                <div class="w-12 h-12 flex items-center justify-center rounded-full bg-palette-warm/50 text-2xl mb-3 group-hover:scale-110 transition-transform duration-300">
+                                    🧬
+                                </div>
+                                <h4 class="font-semibold text-slate-700 text-sm mb-1">Bioinformatics</h4>
+                                <p class="text-[11px] text-slate-500 leading-relaxed">Gene finding, protein family classification &amp; sequence alignment.</p>
+                            </div>
+                        </div>
+
+                        <!-- Speech -->
+                        <div class="group relative p-4 rounded-2xl glass-panel border border-palette-gray/10 hover:border-palette-blue/20 hover:bg-white/40 transition-all duration-300 hover:shadow-lg overflow-hidden">
+                            <div class="absolute inset-0 bg-gradient-to-br from-blue-50/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                            <div class="relative z-10 flex flex-col items-center text-center">
+                                <div class="w-12 h-12 flex items-center justify-center rounded-full bg-palette-warm/50 text-2xl mb-3 group-hover:scale-110 transition-transform duration-300">
+                                    🗣️
+                                </div>
+                                <h4 class="font-semibold text-slate-700 text-sm mb-1">Speech Recognition</h4>
+                                <p class="text-[11px] text-slate-500 leading-relaxed">Acoustic modeling, phoneme recognition &amp; large vocabulary models.</p>
+                            </div>
+                        </div>
+
+                        <!-- Finance -->
+                        <div class="group relative p-4 rounded-2xl glass-panel border border-palette-gray/10 hover:border-palette-blue/20 hover:bg-white/40 transition-all duration-300 hover:shadow-lg overflow-hidden">
+                            <div class="absolute inset-0 bg-gradient-to-br from-blue-50/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                            <div class="relative z-10 flex flex-col items-center text-center">
+                                <div class="w-12 h-12 flex items-center justify-center rounded-full bg-palette-warm/50 text-2xl mb-3 group-hover:scale-110 transition-transform duration-300">
+                                    📈
+                                </div>
+                                <h4 class="font-semibold text-slate-700 text-sm mb-1">Quantitative Finance</h4>
+                                <p class="text-[11px] text-slate-500 leading-relaxed">Regime switching detection, volatility modeling &amp; market analysis.</p>
+                            </div>
+                        </div>
+
+                        <!-- NLP -->
+                        <div class="group relative p-4 rounded-2xl glass-panel border border-palette-gray/10 hover:border-palette-blue/20 hover:bg-white/40 transition-all duration-300 hover:shadow-lg overflow-hidden">
+                            <div class="absolute inset-0 bg-gradient-to-br from-blue-50/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                            <div class="relative z-10 flex flex-col items-center text-center">
+                                <div class="w-12 h-12 flex items-center justify-center rounded-full bg-palette-warm/50 text-2xl mb-3 group-hover:scale-110 transition-transform duration-300">
+                                    🌦️
+                                </div>
+                                <h4 class="font-semibold text-slate-700 text-sm mb-1">Pattern Recognition</h4>
+                                <p class="text-[11px] text-slate-500 leading-relaxed">Climate pattern analysis, POS tagging &amp; handwriting recognition.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 12g. Reference -->
+                <div class="text-xs text-academic-muted border-t border-palette-gray/20 pt-4">
+                    <p class="font-semibold text-slate-600 mb-1">References</p>
+                    <ul class="list-disc list-inside space-y-0.5">
+                        <li>L. R. Rabiner, &ldquo;A Tutorial on Hidden Markov Models and Selected Applications in Speech Recognition,&rdquo; <em>Proceedings of the IEEE</em>, vol. 77, no. 2, pp. 257&ndash;286, 1989.</li>
+                        <li>A. P. Dempster, N. M. Laird, D. B. Rubin, &ldquo;Maximum Likelihood from Incomplete Data via the EM Algorithm,&rdquo; <em>JRSS-B</em>, vol. 39, no. 1, pp. 1&ndash;38, 1977.</li>
+                        <li>C. M. Bishop, <em>Pattern Recognition and Machine Learning</em>, Chapter 13: Sequential Data. Springer, 2006.</li>
+                    </ul>
+                </div>
+
+            </div>
+        </section>
+
+    </main>
+
+    <!-- ══════════════ FOOTER ══════════════ -->
+    <footer class="border-t border-palette-gray/15 glass-panel mt-16 py-8" role="contentinfo">
+        <div class="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4">
+            
+            <!-- Left: Man Art & Copyright -->
+            <div class="flex items-center gap-4">
+                <svg width="21" height="36" viewBox="0 0 28 48" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="Human Icon" class="text-palette-blue opacity-60 hover:opacity-100 transition-opacity duration-300">
+                    <rect x="11" y="2" width="6" height="6" fill="#4B6587" rx="1"></rect>
+                    <rect x="10" y="10" width="8" height="14" fill="#4B6587" rx="1"></rect>
+                    <rect x="4" y="12" width="4" height="10" transform="rotate(-30 6 12)" fill="#4B6587" rx="1"></rect>
+                    <rect x="20" y="12" width="4" height="10" transform="rotate(30 22 12)" fill="#4B6587" rx="1"></rect>
+                    <rect x="8" y="26" width="5" height="18" fill="#4B6587" rx="1"></rect>
+                    <rect x="15" y="26" width="5" height="18" fill="#4B6587" rx="1"></rect>
+                </svg>
+                <div class="text-xs text-black font-medium">
+                    &copy; 2026 Gabriel James <span class="inline-block">💫</span>
+                </div>
+            </div>
+
+            <!-- Right: Links -->
+            <nav class="flex gap-6 text-xs font-medium text-palette-blue/80">
+                <a href="https://gabrieljames.me" target="_blank" rel="noopener noreferrer" class="hover:text-palette-blue transition-colors">Website</a>
+                <a href="https://github.com/gabsgj/Baum-Welch-Algorithm" target="_blank" rel="noopener noreferrer" class="hover:text-palette-blue transition-colors">GitHub</a>
+            </nav>
+        </div>
+    </footer>
+
+    <div id="d3-tooltip" class="d3-tooltip" style="display:none;"></div>
+
+    <!-- JAVASCRIPT -->
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://cdn.plot.ly/plotly-basic-2.27.0.min.js"></script>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script src="/std/js/state_diagram.js"></script>
+    <script>
+            (function () {
+                'use strict';
+
+                // ── State ──
+                let socket = null;
+                let llData = { x: [], y: [] };
+                let probData = { x: [], y: [] };
+                let errorData = { x: [], y: [] };
+                let prevLL = null;
+                let nStates = 2;
+                let nObsSymbols = 3;
+                let evolutionData = {};
+                let hmmDiagram = null;
+                // hmmDiagram3D removed
+                let lastData = null;
+                let iterCount = 0;
+
+                // ── DOM ──
+                const form = document.getElementById('train-form');
+                const trainBtn = document.getElementById('train-btn');
+                const trainBtnText = document.getElementById('train-btn-text');
+                const trainSpinner = document.getElementById('train-spinner');
+                const statusBadge = document.getElementById('status-badge');
+                const statusText = document.getElementById('status-text');
+                const tooltip = document.getElementById('d3-tooltip');
+
+                const SECTIONS = ['results-section', 'll-section', 'prob-section', 'error-section', 'comp-section', 'diagram-section',
+                    'heatmaps-section', 'pi-section', 'evolution-section', 'iterlog-section', 'intermediate-section'];
+
+                let currentInterimView = 'alpha';
+                document.getElementById('btn-show-alpha').addEventListener('click', () => setInterimView('alpha'));
+                document.getElementById('btn-show-beta').addEventListener('click', () => setInterimView('beta'));
+                document.getElementById('btn-show-gamma').addEventListener('click', () => setInterimView('gamma'));
+
+                function setInterimView(view) {
+                    currentInterimView = view;
+                    // Update buttons
+                    ['alpha', 'beta', 'gamma'].forEach(v => {
+                        const btn = document.getElementById(`btn-show-${v}`);
+                        if (v === view) {
+                            btn.className = 'text-xs font-semibold px-3 py-1 rounded-lg bg-palette-blue/20 text-slate-700';
+                        } else {
+                            btn.className = 'text-xs font-semibold px-3 py-1 rounded-lg hover:bg-palette-warm/50 text-slate-500';
+                        }
+                    });
+                    // Refresh table if data exists
+                    if (lastData) updateIntermediate(lastData.alpha, lastData.beta, lastData.gamma);
+                }
+
+                // ── Presets ──
+                document.getElementById('preset-weather').addEventListener('click', () => {
+                    document.getElementById('n-states').value = 2;
+                    document.getElementById('observations').value =
+                        '0, 1, 2, 0, 0, 1, 2, 1, 0, 2, 2, 0, 1, 0, 1, 2, 2, 0, 1, 1, ' +
+                        '0, 2, 0, 1, 2, 0, 0, 1, 2, 1, 0, 2, 2, 0, 1, 0, 1, 2, 2, 0, ' +
+                        '1, 1, 0, 2, 0, 1, 2, 0, 0, 1, 2, 1, 0, 2, 2, 0, 1, 0, 1, 2';
+                    document.getElementById('max-iter').value = 100;
+                    document.getElementById('tolerance').value = '1e-6';
+                });
+                document.getElementById('preset-dna').addEventListener('click', () => {
+                    document.getElementById('n-states').value = 3;
+                    document.getElementById('observations').value =
+                        '0, 1, 2, 3, 0, 1, 0, 2, 3, 1, 2, 0, 3, 1, 2, 0, 0, 1, 3, 2, ' +
+                        '1, 0, 3, 2, 1, 0, 2, 3, 0, 1, 2, 3, 0, 1, 0, 2, 3, 1, 2, 0, ' +
+                        '3, 1, 2, 0, 0, 1, 3, 2, 1, 0, 3, 2, 1, 0, 2, 3, 0, 1, 2, 3';
+                    document.getElementById('max-iter').value = 150;
+                    document.getElementById('tolerance').value = '1e-8';
+                });
+
+                // ── Advanced Init Toggle ──
+                document.getElementById('toggle-advanced').addEventListener('click', function () {
+                    const panel = document.getElementById('advanced-init-panel');
+                    const knob = document.getElementById('toggle-knob');
+                    const label = document.getElementById('init-mode-label');
+                    const isCurrentlyOpen = !panel.classList.contains('hidden');
+
+                    if (isCurrentlyOpen) {
+                        panel.classList.add('hidden');
+                        this.classList.remove('bg-palette-blue');
+                        this.classList.add('bg-slate-200');
+                        knob.classList.remove('translate-x-5');
+                        knob.classList.add('translate-x-0');
+                        this.setAttribute('aria-checked', 'false');
+                        label.textContent = 'Using random initialization';
+                    } else {
+                        panel.classList.remove('hidden');
+                        this.classList.remove('bg-slate-200');
+                        this.classList.add('bg-palette-blue');
+                        knob.classList.remove('translate-x-0');
+                        knob.classList.add('translate-x-5');
+                        this.setAttribute('aria-checked', 'true');
+                        label.textContent = 'Using custom parameters';
+                    }
+                });
+
+                // ── Save Diagram ──
+                document.getElementById('hmm-save').addEventListener('click', function () {
+                    if (hmmDiagram) {
+                        const idx = hmmDiagram.currentIdx;
+                        const iter = (idx >= 0 && hmmDiagram.history[idx])
+                            ? hmmDiagram.history[idx].iteration
+                            : 0;
+                        hmmDiagram.savePNG('hmm_diagram_iter_' + iter + '.png');
+                    }
+                });
+
+                // ── Status helpers ──
+                function setStatus(status) {
+                    const dot = statusBadge.querySelector('span:first-child');
+                    statusText.textContent = status;
+                    dot.innerHTML = '';
+                    dot.style.position = '';
+                    if (status === 'Training') {
+                        dot.className = 'w-2 h-2 rounded-full bg-palette-blue status-pulse';
+                        dot.innerHTML = '<span class="absolute w-2 h-2 rounded-full bg-palette-blue/70 pulse-dot"></span>';
+                        dot.style.position = 'relative';
+                        statusBadge.className = 'flex items-center gap-2 px-3 py-1.5 rounded-full border border-palette-blue/30 text-xs font-medium text-slate-600 bg-palette-blue/10';
+                    } else if (status === 'Converged') {
+                        dot.className = 'w-2 h-2 rounded-full bg-emerald-500';
+                        statusBadge.className = 'flex items-center gap-2 px-3 py-1.5 rounded-full border border-emerald-300 text-xs font-medium text-emerald-700 bg-emerald-50';
+                    } else {
+                        dot.className = 'w-2 h-2 rounded-full bg-slate-400';
+                        statusBadge.className = 'flex items-center gap-2 px-3 py-1.5 rounded-full border border-palette-gray/40 text-xs font-medium text-gray-600 bg-white';
+                    }
+                }
+
+                function setTraining(active) {
+                    trainBtn.disabled = active;
+                    trainSpinner.classList.toggle('hidden', !active);
+                    trainBtnText.textContent = active ? 'Training...' : 'Train Model';
+                }
+
+                // ══════════════════════════════════════════════════
+                //  FORM SUBMIT → WebSocket
+                // ══════════════════════════════════════════════════
+                form.addEventListener('submit', function (e) {
+                    e.preventDefault();
+
+                    nStates = parseInt(document.getElementById('n-states').value, 10);
+                    const obsText = document.getElementById('observations').value;
+                    const maxIter = parseInt(document.getElementById('max-iter').value, 10);
+                    const tol = parseFloat(document.getElementById('tolerance').value);
+
+                    const observations = obsText.split(',').map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n));
+                    if (observations.length < 2) { alert('Need at least 2 observations.'); return; }
+                    nObsSymbols = Math.max(...observations) + 1;
+
+                    // Reset
+                    llData = { x: [], y: [] };
+                    probData = { x: [], y: [] };
+                    errorData = { x: [], y: [] };
+                    prevLL = null;
+                    evolutionData = {};
+                    if (hmmDiagram) hmmDiagram.reset();
+                    hmmDiagram = new HMMDiagram('#state-diagram-container', '#hmm-inspector', {
+                        decongestionEnabled: true,
+                    });
+                    hmmDiagram.wireControls({
+                        btnFirst: document.getElementById('hmm-first'),
+                        btnBack: document.getElementById('hmm-back'),
+                        btnPlay: document.getElementById('hmm-play'),
+                        btnForward: document.getElementById('hmm-fwd'),
+                        btnLast: document.getElementById('hmm-last'),
+                        speedSelect: document.getElementById('hmm-speed'),
+                        timeline: document.getElementById('hmm-timeline'),
+                        iterLabel: document.getElementById('hmm-iter-label'),
+                        btnParticles: document.getElementById('hmm-particles'),
+                        btnDecongestion: document.getElementById('hmm-decongestion'),
+                        decongestionLabel: document.getElementById('hmm-decongestion-label'),
+                    });
+                    lastData = null;
+                    iterCount = 0;
+
+                    for (let i = 0; i < nStates; i++)
+                        for (let j = 0; j < nStates; j++)
+                            evolutionData[`A[${i}][${j}]`] = { x: [], y: [] };
+
+                    // Show sections
+                    SECTIONS.forEach(id => document.getElementById(id).classList.remove('hidden'));
+                    document.getElementById('summary-section').classList.add('hidden');
+                    document.getElementById('metric-iter').textContent = '\u2014';
+                    document.getElementById('metric-ll').textContent = '\u2014';
+                    document.getElementById('metric-delta').textContent = '\u2014';
+                    document.getElementById('metric-status').textContent = 'Starting';
+                    document.getElementById('metric-status').className = 'text-2xl font-semibold text-palette-blue';
+
+                    // Build iteration log table header
+                    buildIterTableHeader();
+                    document.getElementById('iter-table-body').innerHTML = '';
+
+                    setStatus('Training');
+                    setTraining(true);
+                    initLLChart();
+                    initProbChart();
+                    initErrorChart();
+                    initCompChart();
+                    initEvolutionChart();
+
+                    // Connect
+                    if (socket) socket.disconnect();
+                    socket = io();
+
+                    socket.on('connect', () => {
+                        // Gather initialization params
+                        const rawA = document.getElementById('init-a').value.trim();
+                        const rawB = document.getElementById('init-b').value.trim();
+                        const rawPi = document.getElementById('init-pi').value.trim();
+                        let initParams = null;
+
+                        try {
+                            if (rawA || rawB || rawPi) {
+                                initParams = {};
+                                if (rawA) initParams.A = JSON.parse(rawA);
+                                if (rawB) initParams.B = JSON.parse(rawB);
+                                if (rawPi) initParams.pi = JSON.parse(rawPi);
+                            }
+                        } catch (err) {
+                            alert("Invalid JSON in Advanced Settings: " + err.message);
+                            setTraining(false);
+                            return;
+                        }
+
+                        socket.emit('start_training', {
+                            n_states: nStates,
+                            observations: observations,
+                            max_iterations: maxIter,
+                            tolerance: tol,
+                            init_params: initParams
+                        });
+                    });
+
+                    socket.on('training_update', function (data) {
+                        iterCount++;
+                        lastData = data;
+                        updateMetrics(data);
+                        updateLLChart(data);
+                        updateProbChart(data);
+                        updateErrorChart(data);
+                        updateCompChart(data);
+                        if (hmmDiagram) hmmDiagram.feedIteration(data);
+                        // hmmDiagram3D removed
+                        updateHeatmaps(data.A, data.B);
+                        updatePi(data.pi);
+                        updateEvolution(data);
+                        appendIterRow(data);
+                        updateIntermediate(data.alpha, data.beta, data.gamma);
+                    });
+
+                    socket.on('training_complete', function (data) {
+                        setTraining(false);
+                        if (data.converged) {
+                            setStatus('Converged');
+                            document.getElementById('metric-status').textContent = 'Converged';
+                            document.getElementById('metric-status').className = 'text-2xl font-semibold text-emerald-600';
+                        } else {
+                            setStatus('Max Iterations');
+                            document.getElementById('metric-status').textContent = 'Max Iter';
+                            document.getElementById('metric-status').className = 'text-2xl font-semibold text-amber-600';
+                        }
+                        // Build final summary
+                        if (lastData) buildFinalSummary(lastData, data);
+                    });
+
+                    socket.on('training_error', function (data) {
+                        setTraining(false);
+                        setStatus('Error');
+                        alert('Training error: ' + data.error);
+                    });
+                });
+
+                // ══════════════════════════════════════════════════
+                //  3. METRICS
+                // ══════════════════════════════════════════════════
+                function updateMetrics(data) {
+                    document.getElementById('metric-iter').textContent = data.iteration;
+                    document.getElementById('metric-ll').textContent = data.log_likelihood.toFixed(4);
+                    const delta = prevLL !== null ? (data.log_likelihood - prevLL) : 0;
+                    document.getElementById('metric-delta').textContent = (delta >= 0 ? '+' : '') + delta.toExponential(3);
+                    document.getElementById('metric-status').textContent = data.converged ? 'Converged' : 'Running';
+                    if (data.converged) {
+                        document.getElementById('metric-status').className = 'text-2xl font-semibold text-emerald-600';
+                    }
+                    prevLL = data.log_likelihood;
+                }
+
+                // ══════════════════════════════════════════════════
+                //  4. LOG-LIKELIHOOD CHART
+                // ══════════════════════════════════════════════════
+                function initLLChart() {
+                    Plotly.newPlot('ll-chart', [{
+                        x: [], y: [], mode: 'lines',
+                        line: { color: '#2563EB', width: 2 },
+                        hovertemplate: 'Iteration %{x}<br>log P(O|\u03bb): %{y:.6f}<extra></extra>'
+                    }], {
+                        margin: { t: 10, r: 30, b: 45, l: 75 },
+                        xaxis: { title: { text: 'Iteration', font: { family: 'Inter', size: 12, color: '#64748b' } }, gridcolor: '#f1f0ed', zeroline: false },
+                        yaxis: { title: { text: 'log P(O|\u03bb)', font: { family: 'Inter', size: 12, color: '#64748b' } }, gridcolor: '#f1f0ed', zeroline: false },
+                        paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)',
+                        font: { family: 'JetBrains Mono', size: 10, color: '#64748b' },
+                        hovermode: 'x unified'
+                    }, { responsive: true, displayModeBar: false });
+                }
+
+                function updateLLChart(data) {
+                    Plotly.extendTraces('ll-chart', { x: [[data.iteration]], y: [[data.log_likelihood]] }, [0]);
+                }
+
+                // ══════════════════════════════════════════════════
+                //  4b. P(O|lambda) CHART
+                // ══════════════════════════════════════════════════
+                function initProbChart() {
+                    Plotly.newPlot('prob-chart', [{
+                        x: [], y: [], mode: 'lines',
+                        line: { color: '#059669', width: 2 },
+                        hovertemplate: 'Iteration %{x}<br>P(O|\u03bb): %{y:.6e}<extra></extra>'
+                    }], {
+                        margin: { t: 10, r: 30, b: 45, l: 75 },
+                        xaxis: { title: { text: 'Iteration', font: { family: 'Inter', size: 12, color: '#64748b' } }, gridcolor: '#f1f0ed', zeroline: false },
+                        yaxis: { title: { text: 'P(O|\u03bb)', font: { family: 'Inter', size: 12, color: '#64748b' } }, gridcolor: '#f1f0ed', zeroline: false, exponentformat: 'e' },
+                        paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)',
+                        font: { family: 'JetBrains Mono', size: 10, color: '#64748b' },
+                        hovermode: 'x unified'
+                    }, { responsive: true, displayModeBar: false });
+                }
+
+                function updateProbChart(data) {
+                    const prob = Math.exp(data.log_likelihood);
+                    Plotly.extendTraces('prob-chart', { x: [[data.iteration]], y: [[prob]] }, [0]);
+                }
+
+                // ══════════════════════════════════════════════════
+                //  4c. ERROR CHART
+                // ══════════════════════════════════════════════════
+                function initErrorChart() {
+                    Plotly.newPlot('error-chart', [{
+                        x: [], y: [], mode: 'lines',
+                        line: { color: '#EF4444', width: 2 },
+                        hovertemplate: 'Iteration %{x}<br>Loss: %{y:.4f}<extra></extra>'
+                    }], {
+                        margin: { t: 10, r: 30, b: 45, l: 75 },
+                        xaxis: { title: { text: 'Iteration', font: { family: 'Inter', size: 12, color: '#64748b' } }, gridcolor: '#f1f0ed', zeroline: false },
+                        yaxis: { title: { text: 'NLL (-log P)', font: { family: 'Inter', size: 12, color: '#64748b' } }, gridcolor: '#f1f0ed', zeroline: false },
+                        paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)',
+                        font: { family: 'JetBrains Mono', size: 10, color: '#64748b' },
+                        hovermode: 'x unified'
+                    }, { responsive: true, displayModeBar: false });
+                }
+
+                function updateErrorChart(data) {
+                    // Use Negative Log Likelihood as "Error" (Loss)
+                    const loss = -data.log_likelihood;
+                    Plotly.extendTraces('error-chart', { x: [[data.iteration]], y: [[loss]] }, [0]);
+                }
+
+                // ══════════════════════════════════════════════════
+                //  4d. PROB COMPLEMENT CHART
+                // ══════════════════════════════════════════════════
+                function initCompChart() {
+                    Plotly.newPlot('comp-chart', [{
+                        x: [], y: [], mode: 'lines',
+                        line: { color: '#D946EF', width: 2 },
+                        hovertemplate: 'Iter %{x}<br>1 - P_avg: %{y:.6f}<extra></extra>'
+                    }], {
+                        margin: { t: 10, r: 30, b: 45, l: 75 },
+                        xaxis: { title: { text: 'Model Version (\u03bb)', font: { family: 'Inter', size: 12, color: '#64748b' } }, gridcolor: '#f1f0ed', zeroline: false },
+                        yaxis: { title: { text: '1 - P(O|\u03bb)^{1/T}', font: { family: 'Inter', size: 12, color: '#64748b' } }, gridcolor: '#f1f0ed', zeroline: false, range: [0, 1] },
+                        paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)',
+                        font: { family: 'JetBrains Mono', size: 10, color: '#64748b' },
+                        hovermode: 'x unified'
+                    }, { responsive: true, displayModeBar: false });
+                }
+
+                function updateCompChart(data) {
+                    const T = (data.alpha && data.alpha.length > 0) ? data.alpha.length : 1;
+                    const probPerStep = Math.exp(data.log_likelihood / T);
+                    const comp = Math.max(0, 1 - probPerStep);
+                    Plotly.extendTraces('comp-chart', { x: [[data.iteration]], y: [[comp]] }, [0]);
+                }
+
+                // (State diagram handled by external HMMDiagram class)
+
+                // ══════════════════════════════════════════════════
+                //  6-7. HEATMAPS
+                // ══════════════════════════════════════════════════
+                function updateHeatmaps(A, B) {
+                    renderHeatmap('heatmap-A', A, 'S', 'S');
+                    renderHeatmap('heatmap-B', B, 'S', 'O');
+                }
+
+                function renderHeatmap(id, matrix, rPfx, cPfx) {
+                    const el = document.getElementById(id);
+                    const R = matrix.length, C = matrix[0].length;
+                    const cs = 60;
+                    let h = '<table class="border-collapse"><tr><td class="w-10"></td>';
+                    for (let j = 0; j < C; j++)
+                        h += `<td class="text-center text-xs font-medium text-academic-muted pb-2" style="width:${cs}px">${cPfx}${j}</td>`;
+                    h += '</tr>';
+                    for (let i = 0; i < R; i++) {
+                        h += `<tr><td class="text-right text-xs font-medium text-academic-muted pr-3">${rPfx}${i}</td>`;
+                        for (let j = 0; j < C; j++) {
+                            const v = matrix[i][j];
+                            const r = Math.round(255 - v * (255 - 37));
+                            const g = Math.round(255 - v * (255 - 99));
+                            const b = Math.round(255 - v * (255 - 235));
+                            const tc = v > 0.55 ? '#fff' : '#1e293b';
+                            h += `<td class="heatmap-cell text-center border border-palette-gray/20"
+                          style="width:${cs}px;height:${cs}px;background:rgb(${r},${g},${b});color:${tc};line-height:${cs}px;">
+                          ${v.toFixed(3)}</td>`;
+                        }
+                        h += '</tr>';
+                    }
+                    h += '</table>';
+                    el.innerHTML = h;
+                }
+
+                // ══════════════════════════════════════════════════
+                //  8. PI BARS
+                // ══════════════════════════════════════════════════
+                function updatePi(pi) {
+                    const el = document.getElementById('pi-bars');
+                    let h = '';
+                    for (let i = 0; i < pi.length; i++) {
+                        const pct = (pi[i] * 100).toFixed(1);
+                        h += `<div class="flex items-center gap-3">
+                    <span class="text-xs font-medium text-slate-600 w-8">S${i}</span>
+                    <div class="flex-1 bg-[#F0E5CF]/40 rounded-lg h-7 overflow-hidden">
+                        <div class="pi-bar" style="width:${pct}%; min-width:2px;"></div>
+                    </div>
+                    <span class="font-mono-num text-xs text-slate-700 w-16 text-right">${pi[i].toFixed(4)}</span>
+                </div>`;
+                    }
+                    el.innerHTML = h;
+                }
+
+                // ══════════════════════════════════════════════════
+                //  9. PARAMETER EVOLUTION
+                // ══════════════════════════════════════════════════
+                const evoColors = ['#2563EB', '#7C3AED', '#DC2626', '#059669', '#D97706', '#0891B2', '#BE185D', '#6D28D9', '#CA8A04', '#166534'];
+
+                function initEvolutionChart() {
+                    const traces = [];
+                    let idx = 0;
+                    for (let i = 0; i < nStates; i++) {
+                        for (let j = 0; j < nStates; j++) {
+                            traces.push({
+                                x: [], y: [], mode: 'lines', name: `A[${i}][${j}]`,
+                                line: { color: evoColors[idx % evoColors.length], width: 1.5 },
+                                hovertemplate: `A[${i}][${j}] = %{y:.4f}<extra></extra>`
+                            });
+                            idx++;
+                        }
+                    }
+                    Plotly.newPlot('evolution-chart', traces, {
+                        margin: { t: 10, r: 30, b: 45, l: 60 },
+                        xaxis: { title: { text: 'Iteration', font: { family: 'Inter', size: 12, color: '#64748b' } }, gridcolor: '#f1f0ed', zeroline: false },
+                        yaxis: { title: { text: 'Probability', font: { family: 'Inter', size: 12, color: '#64748b' } }, gridcolor: '#f1f0ed', zeroline: false, range: [0, 1] },
+                        paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)',
+                        font: { family: 'JetBrains Mono', size: 10, color: '#64748b' },
+                        legend: { font: { family: 'JetBrains Mono', size: 10 }, orientation: 'h', y: -0.22 },
+                        hovermode: 'x unified'
+                    }, { responsive: true, displayModeBar: false });
+                }
+
+                function updateEvolution(data) {
+                    const A = data.A;
+                    const xU = [], yU = [], indices = [];
+                    let idx = 0;
+                    for (let i = 0; i < A.length; i++)
+                        for (let j = 0; j < A[i].length; j++) {
+                            xU.push([data.iteration]); yU.push([A[i][j]]); indices.push(idx++);
+                        }
+                    Plotly.extendTraces('evolution-chart', { x: xU, y: yU }, indices);
+                }
+
+                // ══════════════════════════════════════════════════
+                //  10. ITERATION LOG TABLE
+                // ══════════════════════════════════════════════════
+                function buildIterTableHeader() {
+                    let h = '<th>Iter</th><th>Log-Likelihood</th><th>\u0394LL</th>';
+                    for (let i = 0; i < nStates; i++)
+                        for (let j = 0; j < nStates; j++)
+                            h += `<th>A[${i}][${j}]</th>`;
+                    for (let i = 0; i < nStates; i++)
+                        for (let k = 0; k < nObsSymbols; k++)
+                            h += `<th>B[${i}][${k}]</th>`;
+                    for (let i = 0; i < nStates; i++)
+                        h += `<th>\u03c0[${i}]</th>`;
+                    document.getElementById('iter-table-head').innerHTML = h;
+                }
+
+                let prevLLForTable = null;
+                function appendIterRow(data) {
+                    const tbody = document.getElementById('iter-table-body');
+                    const delta = prevLLForTable !== null ? (data.log_likelihood - prevLLForTable) : 0;
+                    prevLLForTable = data.log_likelihood;
+
+                    let cells = `<td>${data.iteration}</td>`;
+                    cells += `<td>${data.log_likelihood.toFixed(6)}</td>`;
+                    cells += `<td>${(delta >= 0 ? '+' : '')}${delta.toExponential(3)}</td>`;
+                    for (let i = 0; i < data.A.length; i++)
+                        for (let j = 0; j < data.A[i].length; j++)
+                            cells += `<td>${data.A[i][j].toFixed(4)}</td>`;
+                    for (let i = 0; i < data.B.length; i++)
+                        for (let k = 0; k < data.B[i].length; k++)
+                            cells += `<td>${data.B[i][k].toFixed(4)}</td>`;
+                    for (let i = 0; i < data.pi.length; i++)
+                        cells += `<td>${data.pi[i].toFixed(4)}</td>`;
+
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = cells;
+                    tbody.appendChild(tr);
+
+                    // Auto-scroll to bottom
+                    const wrapper = tbody.closest('div');
+                    if (wrapper) wrapper.scrollTop = wrapper.scrollHeight;
+                }
+
+                // ══════════════════════════════════════════════════
+                //  10.5 INTERMEDIATE VARS
+                // ══════════════════════════════════════════════════
+                function updateIntermediate(alpha, beta, gamma) {
+                    if (!alpha || !beta || !gamma) return;
+                    
+                    let data = [];
+                    if (currentInterimView === 'alpha') data = alpha;
+                    else if (currentInterimView === 'beta') data = beta;
+                    else if (currentInterimView === 'gamma') data = gamma;
+
+                    // Limit to 20 rows
+                    const limit = Math.min(20, data.length);
+                    const T = data.length;
+                    const N = data[0].length;
+
+                    let html = '<table class="iter-table w-full text-left border-collapse border border-[#C8C6C6]/30">';
+                    
+                    // Header
+                    html += '<thead><tr><th class="border border-[#C8C6C6]/30 bg-[#F0E5CF]/50">t</th>';
+                    for(let i=0; i<N; i++) html += `<th class="border border-[#C8C6C6]/30 bg-[#F0E5CF]/50 text-center">S${i}</th>`;
+                    html += '</tr></thead><tbody>';
+
+                    for(let t=0; t<limit; t++) {
+                        html += `<tr><td class="border border-[#C8C6C6]/20 font-semibold bg-[#F0E5CF]/30 text-center">${t}</td>`;
+                        for(let i=0; i<N; i++) {
+                            // Highlight large values
+                            const val = data[t][i];
+                            const isLarge = val > (1.0/N);
+                            const style = isLarge ? 'font-weight:600; color:#1e293b;' : 'color:#94a3b8;';
+                            html += `<td class="border border-[#C8C6C6]/20 text-center" style="${style}">${val.toExponential(4)}</td>`;
+                        }
+                        html += '</tr>';
+                    }
+                    html += '</tbody></table>';
+                    
+                    if (T > limit) {
+                         html += `<p class="text-[10px] text-slate-400 mt-1 text-center">... and ${T - limit} more time steps ...</p>`;
+                    }
+
+                    document.getElementById('intermediate-container').innerHTML = html;
+                }
+
+                // ══════════════════════════════════════════════════
+                //  11. FINAL SUMMARY TABLE
+                // ══════════════════════════════════════════════════
+                function buildFinalSummary(lastData, completionData) {
+                    const sec = document.getElementById('summary-section');
+                    sec.classList.remove('hidden');
+
+                    const A = lastData.A, B = lastData.B, pi = lastData.pi;
+                    let html = '';
+
+                    // Stats bar
+                    html += `<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <div class="bg-[#F0E5CF]/40 rounded-lg p-3">
+                <p class="text-xs text-[#7B7B8E] mb-0.5">Total Iterations</p>
+                <p class="font-mono-num font-semibold text-lg">${completionData.n_iterations}</p>
+            </div>
+            <div class="bg-[#F0E5CF]/40 rounded-lg p-3">
+                <p class="text-xs text-[#7B7B8E] mb-0.5">Final log P(O|&lambda;)</p>
+                <p class="font-mono-num font-semibold text-lg">${completionData.final_log_likelihood.toFixed(6)}</p>
+            </div>
+            <div class="bg-[#F0E5CF]/40 rounded-lg p-3">
+                <p class="text-xs text-[#7B7B8E] mb-0.5">Final P(O|&lambda;)</p>
+                <p class="font-mono-num font-semibold text-lg">${Math.exp(completionData.final_log_likelihood).toExponential(4)}</p>
+            </div>
+            <div class="bg-[#F0E5CF]/40 rounded-lg p-3">
+                <p class="text-xs text-[#7B7B8E] mb-0.5">Converged</p>
+                <p class="font-semibold text-lg ${completionData.converged ? 'text-emerald-600' : 'text-amber-600'}">${completionData.converged ? 'Yes' : 'No (max iter)'}</p>
+            </div>
+        </div>`;
+
+                    // ── Transition Matrix A ──
+                    html += '<h3 class="text-sm font-semibold text-slate-700 mb-2">Transition Matrix A</h3>';
+                    html += '<div class="overflow-x-auto mb-5"><table class="iter-table border-collapse border border-[#C8C6C6]/30">';
+                    html += '<tr><th class="border border-[#C8C6C6]/30 bg-[#F0E5CF]/50"></th>';
+                    for (let j = 0; j < A[0].length; j++) html += `<th class="border border-[#C8C6C6]/30 bg-[#F0E5CF]/50 text-center">S${j}</th>`;
+                    html += '</tr>';
+                    for (let i = 0; i < A.length; i++) {
+                        html += `<tr><td class="border border-[#C8C6C6]/20 bg-[#F0E5CF]/30 font-semibold text-center">S${i}</td>`;
+                        for (let j = 0; j < A[i].length; j++)
+                            html += `<td class="border border-[#C8C6C6]/20 text-center">${A[i][j].toFixed(6)}</td>`;
+                        html += '</tr>';
+                    }
+                    html += '</table></div>';
+
+                    // ── Emission Matrix B ──
+                    html += '<h3 class="text-sm font-semibold text-slate-700 mb-2">Emission Matrix B</h3>';
+                    html += '<div class="overflow-x-auto mb-5"><table class="iter-table border-collapse border border-[#C8C6C6]/30">';
+                    html += '<tr><th class="border border-[#C8C6C6]/30 bg-[#F0E5CF]/50"></th>';
+                    for (let k = 0; k < B[0].length; k++) html += `<th class="border border-[#C8C6C6]/30 bg-[#F0E5CF]/50 text-center">O${k}</th>`;
+                    html += '</tr>';
+                    for (let i = 0; i < B.length; i++) {
+                        html += `<tr><td class="border border-[#C8C6C6]/20 bg-[#F0E5CF]/30 font-semibold text-center">S${i}</td>`;
+                        for (let k = 0; k < B[i].length; k++)
+                            html += `<td class="border border-[#C8C6C6]/20 text-center">${B[i][k].toFixed(6)}</td>`;
+                        html += '</tr>';
+                    }
+                    html += '</table></div>';
+
+                    // ── Initial Distribution ──
+                    html += '<h3 class="text-sm font-semibold text-slate-700 mb-2">Initial Distribution &pi;</h3>';
+                    html += '<div class="overflow-x-auto"><table class="iter-table border-collapse border border-[#C8C6C6]/30"><tr>';
+                    for (let i = 0; i < pi.length; i++) html += `<th class="border border-[#C8C6C6]/30 bg-[#F0E5CF]/50 text-center">&pi;(S${i})</th>`;
+                    html += '</tr><tr>';
+                    for (let i = 0; i < pi.length; i++) html += `<td class="border border-[#C8C6C6]/20 text-center">${pi[i].toFixed(6)}</td>`;
+                    html += '</tr></table></div>';
+
+                    document.getElementById('summary-content').innerHTML = html;
+
+                    // Scroll to summary with top padding so the heading isn't flush against the viewport
+                    const _top = sec.getBoundingClientRect().top + window.scrollY - 80;
+                    window.scrollTo({ top: _top, behavior: 'smooth' });
+                }
+
+                // Fullscreen for HMM diagram
+                const fsBtn = document.getElementById('hmm-fullscreen');
+                const diagramCard = document.getElementById('diagram-card');
+                if (fsBtn && diagramCard) {
+                    fsBtn.addEventListener('click', () => {
+                        if (!document.fullscreenElement) {
+                            (diagramCard.requestFullscreen || diagramCard.webkitRequestFullscreen || diagramCard.msRequestFullscreen).call(diagramCard);
+                        } else {
+                            (document.exitFullscreen || document.webkitExitFullscreen || document.msExitFullscreen).call(document);
+                        }
+                    });
+                    document.addEventListener('fullscreenchange', () => {
+                        const isFs = !!document.fullscreenElement;
+                        fsBtn.innerHTML = isFs
+                            ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="10" y1="14" x2="3" y2="21"/></svg>'
+                            : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>';
+                        fsBtn.title = isFs ? 'Exit Fullscreen' : 'Fullscreen';
+                    });
+                }
+
+            })();
+
+            // Chart download functionality
+            window.downloadChart = function(chartId, filename) {
+                const chartElement = document.getElementById(chartId);
+                if (!chartElement) {
+                    console.error('Chart element not found:', chartId);
+                    return;
+                }
+
+                const currentLayout = chartElement.layout || {};
+                const originalPaperBg = currentLayout.paper_bgcolor;
+                const originalPlotBg = currentLayout.plot_bgcolor;
+
+                Plotly.relayout(chartElement, {
+                    paper_bgcolor: '#FFFFFF',
+                    plot_bgcolor: '#FFFFFF'
+                })
+                    .then(function() {
+                        return Plotly.toImage(chartElement, {
+                            format: 'png',
+                            width: 1200,
+                            height: 600,
+                            scale: 2
+                        });
+                    })
+                    .then(function(dataUrl) {
+                        const link = document.createElement('a');
+                        link.download = filename + '.png';
+                        link.href = dataUrl;
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                    })
+                    .catch(function(err) {
+                        console.error('Error downloading chart:', err);
+                        alert('Failed to download chart. Please try again.');
+                    })
+                    .finally(function() {
+                        Plotly.relayout(chartElement, {
+                            paper_bgcolor: originalPaperBg ?? 'rgba(0,0,0,0)',
+                            plot_bgcolor: originalPlotBg ?? 'rgba(0,0,0,0)'
+                        });
+                    });
+            };
+    </script>
+
+
+</body>
+
+</html>
