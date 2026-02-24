@@ -142,19 +142,6 @@ export default function BaumWelchMenu() {
               </div>
             </div>
 
-            {/* 2. State Transition Diagram Container */}
-            <div className="bg-white shadow-sm border border-gray-100 rounded-xl p-6">
-              <h3 className="text-lg font-medium text-gray-800 mb-4">State Transition Diagram</h3>
-              {/* This is the dedicated div for gabsgj/state-transition-diagrams. 
-                  You can target this ID from your useEffect hook later! */}
-              
-              <div 
-                id="state-transition-canvas-container" 
-                className="w-full h-64 bg-gray-50 border border-dashed border-gray-300 rounded flex items-center justify-center text-gray-400"
-              >
-                (Canvas targeting #state-transition-canvas-container goes here)
-              </div>
-            </div>
 
             {/* 3. Graph of Iterations */}
             <div className="bg-white shadow-sm border border-gray-100 rounded-xl p-6">

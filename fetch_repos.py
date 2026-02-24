@@ -179,6 +179,7 @@ def main():
         if target_dir and os.path.exists(target_dir):
             print(f"  -> Already exists at {os.path.basename(target_dir)}. Refetching...")
             username_repo = raw_url.split('github.com/')[-1].split('?')[0].replace('/', '_').replace('.git', '')
+            username_repo = re.sub(r'[\\/*?:"<>|.]+$', '', username_repo)
             temp_dir = os.path.join(base_dir, f"temp_{username_repo}")
             
             if os.path.exists(temp_dir):
@@ -225,8 +226,8 @@ def main():
             continue
             
         # Needs clone
-        # Use a temporary directory name
         username_repo = raw_url.split('github.com/')[-1].split('?')[0].replace('/', '_').replace('.git', '')
+        username_repo = re.sub(r'[\\/*?:"<>|.]+$', '', username_repo)
         temp_dir = os.path.join(base_dir, f"temp_{username_repo}")
         
         if os.path.exists(temp_dir):

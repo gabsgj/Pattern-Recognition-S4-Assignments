@@ -64,7 +64,8 @@ https://github.com/melita-28/hmm-py.git
 https://github.com/devikashilu/hmm_bwa.git
 https://github.com/nevinbeno/baum-welch-algo
 https://github.com/gabsgj/Baum-Welch-Algorithm-Submission-Only
-
+https://github.com/JIYAD42/HMM-Baum-Welch-App.
+https://github.com/Devan4444/HMM.git
 
 --GROUPS--
 https://github.com/Abbhiiraamii/hmm-project/tree/main?authuser=0
