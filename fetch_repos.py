@@ -247,7 +247,7 @@ def main():
                     readme_content = f.read()
                 break
                 
-        students = extract_roll_and_name(readme_content)
+        students = extract_roll_and_name(username_repo, readme_content)
         
         if not students:
             # Try exploring deeper if README has nothing
@@ -295,6 +295,68 @@ def main():
             print(f"  -> Failed to rename {temp_dir} to {final_path}: {e}")
 
     print("Finished processing all repositories.")
+    print("Generating master README.md...")
+    generate_readme(base_dir)
+
+def generate_readme(base_dir):
+    entries = []
+    
+    for d in os.listdir(base_dir):
+        if not os.path.isdir(d):
+            continue
+            
+        if d in ['.git', '__pycache__'] or d.startswith('.'):
+            continue
+            
+        if d.startswith('[Group]'):
+            rolls = []
+            for m in re.finditer(r'(TCR.*?CS\d{3})', d, re.IGNORECASE):
+                roll = m.group(1).upper()
+                if roll not in rolls:
+                    rolls.append(roll)
+                    
+            if rolls:
+                readme_content = ""
+                for file in os.listdir(os.path.join(base_dir, d)):
+                    if file.lower() in ['readme.md', 'readme.txt']:
+                        try:
+                            with open(os.path.join(base_dir, d, file), 'r', encoding='utf-8', errors='ignore') as f:
+                                readme_content = f.read()
+                        except: pass
+                        break
+                        
+                students = extract_roll_and_name(d, readme_content)
+                roll_to_name = {r: n for r, n in students}
+                
+                for roll in rolls:
+                    name = roll_to_name.get(roll, "Group Member")
+                    entries.append((roll, name, d))
+            else:
+                entries.append(("UNKNOWN", "Group Member", d))
+        else:
+            m = re.search(r'(TCR.*?CS\d{3}|\[UNKNOWN\])\s*-\s*(.*)', d, re.IGNORECASE)
+            if m:
+                entries.append((m.group(1).upper(), m.group(2).strip(), d))
+                
+    entries.sort(key=lambda x: x[0] if x[0] != '[UNKNOWN]' else 'ZZZ')
+    
+    readme_path = os.path.join(base_dir, 'README.md')
+    
+    try:
+        with open(readme_path, 'w', encoding='utf-8') as f:
+            f.write("# Pattern Recognition - S4 Assignments\n\n")
+            f.write("This repository contains all the student submissions for the HMM Baum-Welch Algorithm assignment.\n\n")
+            f.write("## Submissions\n\n")
+            f.write("| Registration Number | Student Name | Directory Link |\n")
+            f.write("| :--- | :--- | :--- |\n")
+            
+            for reg, name, directory in entries:
+                clean_dir = directory.replace(' ', '%20')
+                f.write(f"| {reg} | {name} | [{directory}](./{clean_dir}) |\n")
+                
+        print(f"Generated README.md with {len(entries)} student entries.")
+    except Exception as e:
+        print(f"Failed to generate README.md: {e}")
 
 if __name__ == '__main__':
     main()

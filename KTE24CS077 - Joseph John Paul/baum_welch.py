@@ -1,6 +1,7 @@
 import numpy as np # type: ignore
 import math
 import random
+import matplotlib.pyplot as plt
 
 
 def init_matrix(Q):
@@ -128,18 +129,61 @@ lmbda=init_matrix(Q)
 pro_O_old=0
 pro_O_new=probability(O,lmbda[1],lmbda[2],lmbda[0])
 
+# Track 1 - P(O|lambda) at each iteration for plotting
+iteration_values = []   # x-axis: iteration number
+complement_values = []  # y-axis: 1 - P(O|lambda)
+
+iteration = 0
+iteration_values.append(iteration)
+complement_values.append(1 - pro_O_new)
 
 while (abs(pro_O_new - pro_O_old) > tolerance):
     pro_O_old=pro_O_new
     lmbda=modify_lmbda(O,lmbda)
     pro_O_new=probability(O,lmbda[1],lmbda[2],lmbda[0])
-    print("Probability of the observation sequence: \n",pro_O_new)
+    iteration += 1
+    iteration_values.append(iteration)
+    complement_values.append(1 - pro_O_new)
+    print(f"Iteration {iteration} | P(O|λ) = {pro_O_new:.8f} | 1 - P(O|λ) = {complement_values[-1]:.8f}")
     
     
 
 print("Initial state probabilities: \n",lmbda[0])
 print("Transition probabilities: \n",lmbda[1])
 print("Emission probabilities: \n",lmbda[2])
-
 print("Probability of the observation sequence: \n",pro_O_new)
 
+# ── Visualization ──────────────────────────────────────────────────────────────
+fig, axes = plt.subplots(1, 2, figsize=(14, 5))
+fig.suptitle("Baum-Welch Algorithm Convergence", fontsize=14, fontweight="bold")
+
+# Left plot: 1 - P(O|λ) over iterations
+ax1 = axes[0]
+ax1.plot(iteration_values, complement_values, marker="o", color="steelblue",
+         linewidth=2, markersize=5, label="1 - P(O|λ)")
+ax1.set_xlabel("Iteration", fontsize=12)
+ax1.set_ylabel("1 - P(O|λ)", fontsize=12)
+ax1.set_title("1 - P(O|λ) vs Iteration\n(approaches 0 as model improves)", fontsize=11)
+ax1.legend()
+ax1.grid(True, linestyle="--", alpha=0.6)
+# Annotate start and end
+ax1.annotate(f"Start\n{complement_values[0]:.4f}", xy=(iteration_values[0], complement_values[0]),
+             xytext=(5, 10), textcoords="offset points", fontsize=8, color="green")
+ax1.annotate(f"End\n{complement_values[-1]:.6f}", xy=(iteration_values[-1], complement_values[-1]),
+             xytext=(-40, 10), textcoords="offset points", fontsize=8, color="red")
+
+# Right plot: P(O|λ) over iterations (for direct comparison)
+prob_values = [1 - c for c in complement_values]
+ax2 = axes[1]
+ax2.plot(iteration_values, prob_values, marker="s", color="darkorange",
+         linewidth=2, markersize=5, label="P(O|λ)")
+ax2.set_xlabel("Iteration", fontsize=12)
+ax2.set_ylabel("P(O|λ)", fontsize=12)
+ax2.set_title("P(O|λ) vs Iteration\n(approaches 1 as model improves)", fontsize=11)
+ax2.legend()
+ax2.grid(True, linestyle="--", alpha=0.6)
+
+plt.tight_layout()
+plt.savefig("baum_welch_convergence.png", dpi=150, bbox_inches="tight")
+print("\nConvergence plot saved as 'baum_welch_convergence.png'")
+plt.show()

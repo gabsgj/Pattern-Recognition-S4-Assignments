@@ -73,9 +73,5 @@ The process repeats until convergence.
 
 ---
 
-## ▶️ How to Run the Project
-
-### 1️⃣ Install dependencies
-
-```bash
-pip install streamlit numpy graphviz
+Deployed Application:
+https://hmm-baum-welch-qfj9s2bqkp8xtzhuphfyaa.streamlit.app/
