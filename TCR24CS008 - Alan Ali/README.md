@@ -4,7 +4,7 @@
 
 **Name:** Alan Ali
 
-**Register Number:** TCR24CS1086
+**Register Number:** TCR24CS008
 
 **Course:** Pattern Recognition
 

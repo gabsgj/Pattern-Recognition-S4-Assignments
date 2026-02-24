@@ -78,7 +78,6 @@ This repository contains all the student submissions for the HMM Baum-Welch Algo
 | TCR24CS072 | Dwaraka Dileep | [TCR24CS072 - Dwaraka Dileep](./TCR24CS072%20-%20Dwaraka%20Dileep) |
 | TCR24CS073 | KAVYA THILAKAN | [LTCR24CS073 - KAVYA THILAKAN](./LTCR24CS073%20-%20KAVYA%20THILAKAN) |
 | TCR24CS074 | Muhammed Jiyad U | [TCR24CS074 - Muhammed Jiyad U](./TCR24CS074%20-%20Muhammed%20Jiyad%20U) |
-| TCR24CS074 | Muhammed Jiyad U_1 | [TCR24CS074 - Muhammed Jiyad U_1](./TCR24CS074%20-%20Muhammed%20Jiyad%20U_1) |
 | TCR24CS075 | Nabeel T | [TCR24CS075 - Nabeel T](./TCR24CS075%20-%20Nabeel%20T) |
 | TCR24CS076 | Sabeel T | [TCR24CS076 - Sabeel T](./TCR24CS076%20-%20Sabeel%20T) |
 | TCR24CS077 | Shima Shamsudheen | [TCR24CS077 - Shima Shamsudheen](./TCR24CS077%20-%20Shima%20Shamsudheen) |
