@@ -1,3 +1,6 @@
+# ALAN T. ROBI
+# TCR24CS009
+
 # HMM Trainer (Baum–Welch Algorithm)
 
 This is a simple Python GUI application that trains a Hidden Markov Model (HMM) using the Baum–Welch algorithm.

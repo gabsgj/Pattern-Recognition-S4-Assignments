@@ -6,6 +6,7 @@ This repository contains all the student submissions for the HMM Baum-Welch Algo
 
 | Registration Number | Student Name | Directory Link |
 | :--- | :--- | :--- |
+| KTE24CS077 | Joseph John Paul | [KTE24CS077 - Joseph John Paul](./KTE24CS077%20-%20Joseph%20John%20Paul) |
 | TCR24CS001 | Aakash P D | [TCR24CS001 - Aakash P D](./TCR24CS001%20-%20Aakash%20P%20D) |
 | TCR24CS002 | Abhiram H | [TCR24CS002 - Abhiram H](./TCR24CS002%20-%20Abhiram%20H) |
 | TCR24CS003 | Abhirami S | [[Group] TCR24CS003 TCR24CS040](./[Group]%20TCR24CS003%20TCR24CS040) |
