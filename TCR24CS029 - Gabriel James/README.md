@@ -5,7 +5,7 @@
 **University Registration Number:** TCR24CS029
 
 ## LIVE DEPLOYED LINK
-**[https://bwa.gabrieljames.me](https://bwa.gabrieljames.me)**
+**[https://bwa.gabrieljames.dev](https://bwa.gabrieljames.dev)**
 
 ## Instructions on how to run the program - simple.
 
